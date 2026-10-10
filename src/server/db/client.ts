@@ -13,7 +13,7 @@ const globalForDb = globalThis as unknown as { __geiaPool?: pg.Pool; __geiaDb?: 
 function createPool() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error('DATABASE_URL no está definida. Ejemplo: postgres://geiatienda:geiatienda@localhost:5433/geiatienda');
+    throw new Error('DATABASE_URL no está definida. Ejemplo: postgres://geiatienda:geiatienda@localhost:5435/geiatienda');
   }
   const pool = new pg.Pool({
     connectionString,

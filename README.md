@@ -19,7 +19,7 @@ docker compose up --build
 
 En Mac también puedes hacer doble clic en **`Iniciar GeiaTienda.command`**: abre Docker Desktop si hace falta, arranca todo y abre el navegador. **`Detener GeiaTienda.command`** la apaga sin borrar los datos.
 
-La app queda en **http://localhost:3001** y Postgres en `localhost:5433`, así puede correr al mismo tiempo que AssetPlus (3000/5432). Cambia `APP_PORT` y `POSTGRES_PORT` en `.env` si quieres otros puertos. Las tablas se crean solas al arrancar.
+La app queda en **http://localhost:3001** y Postgres en `localhost:5435`, así puede correr al mismo tiempo que AssetPlus (3000/5432), CuponManía (3100-3101/5433) y JobMatcher (3200/5434). Cambia `APP_PORT` y `POSTGRES_PORT` en `.env` si quieres otros puertos. Las tablas se crean solas al arrancar.
 
 **Primer acceso:** si `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` están en `.env`, entra con Google con el correo del dueño (`SUPER_ADMIN_EMAILS`). Si no, haz doble clic en **`Crear contraseña admin.command`**: genera una contraseña para el dueño y la muestra una vez.
 
@@ -87,7 +87,7 @@ Los cambios en `src/` aparecen al instante. Usa la misma base de datos que el mo
 ```bash
 npm install
 cp .env.example .env
-docker compose up -d db       # solo la base de datos, en localhost:5433
+docker compose up -d db       # solo la base de datos, en localhost:5435
 npm run dev                   # http://localhost:3000
 ```
 
@@ -109,7 +109,7 @@ Todas están documentadas en [`.env.example`](.env.example). Las principales:
 | Variable | Para qué |
 |---|---|
 | `SUPER_ADMIN_EMAILS` | Dueños del sistema: siempre administradores. |
-| `APP_PORT` / `POSTGRES_PORT` | Puertos locales (3001 y 5433 por defecto). |
+| `APP_PORT` / `POSTGRES_PORT` | Puertos locales (3001 y 5435 por defecto). |
 | `PUBLIC_URL` | Dirección pública, para los enlaces de invitación y el regreso de Google. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Activan "Entrar con Google". Ver abajo. |
 | `PASSWORD_LOGIN_ENABLED` | `false` para permitir solo Google. |

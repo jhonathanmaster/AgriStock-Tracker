@@ -13,7 +13,7 @@ La interfaz y los textos están en **español**; mantén ese idioma en UI, mensa
 - Tailwind CSS 3 + componentes shadcn/ui (`src/components/ui/`, config en `components.json`)
 - Sesiones propias: Google (OIDC + PKCE) y correo/contraseña (`src/server/auth.ts`, `src/server/google.ts`)
 - Correos con `nodemailer` vía Gmail (`src/server/email/`)
-- Docker: `Dockerfile` (salida standalone), `docker-compose.yml` (app 3001, Postgres 5433) y `docker-compose.dev.yml`
+- Docker: `Dockerfile` (salida standalone), `docker-compose.yml` (app 3001, Postgres 5435) y `docker-compose.dev.yml`
 - Sin Firebase ni Genkit.
 
 ## Comandos

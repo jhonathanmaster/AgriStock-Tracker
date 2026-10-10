@@ -5,6 +5,6 @@ export default defineConfig({
   schema: './src/server/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgres://geiatienda:geiatienda@localhost:5433/geiatienda',
+    url: process.env.DATABASE_URL || 'postgres://geiatienda:geiatienda@localhost:5435/geiatienda',
   },
 });
