@@ -1,0 +1,83 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-farm-landscape",
+      "description": "Imagen de un cerdo en una granja con iluminación natural, representando los consumidores de los productos.",
+      "imageUrl": "https://picsum.photos/seed/pig-farm-hero-banner/1920/1080",
+      "imageHint": "pig farm"
+    },
+    {
+      "id": "poultry-farm",
+      "description": "Pollos y gallinas de granja",
+      "imageUrl": "https://picsum.photos/seed/poultry88/600/400",
+      "imageHint": "chicken hen"
+    },
+    {
+      "id": "pig-farm",
+      "description": "Cerdos y porcinos",
+      "imageUrl": "https://picsum.photos/seed/pigs22/600/400",
+      "imageHint": "pig farm"
+    },
+    {
+      "id": "cattle-meadow",
+      "description": "Ganado bovino y vacas",
+      "imageUrl": "https://picsum.photos/seed/cow44/600/400",
+      "imageHint": "cow cattle"
+    },
+    {
+      "id": "corn-grains",
+      "description": "Granos de maíz y cereales",
+      "imageUrl": "https://picsum.photos/seed/corn77/600/400",
+      "imageHint": "corn grains"
+    },
+    {
+      "id": "animal-feed-bag",
+      "description": "Sacos de concentrado y alimento",
+      "imageUrl": "https://picsum.photos/seed/feed55/600/400",
+      "imageHint": "feed bag"
+    },
+    {
+      "id": "farm-tools",
+      "description": "Herramientas agrícolas manuales",
+      "imageUrl": "https://picsum.photos/seed/tools11/600/400",
+      "imageHint": "farm tools"
+    },
+    {
+      "id": "veterinary-meds",
+      "description": "Medicamentos y vacunas veterinarias",
+      "imageUrl": "https://picsum.photos/seed/meds99/600/400",
+      "imageHint": "medicine bottles"
+    },
+    {
+      "id": "fertilizer-soil",
+      "description": "Fertilizantes y abonos",
+      "imageUrl": "https://picsum.photos/seed/fert33/600/400",
+      "imageHint": "fertilizer bag"
+    },
+    {
+      "id": "mineral-salt",
+      "description": "Sales minerales y bloques",
+      "imageUrl": "https://picsum.photos/seed/salt66/600/400",
+      "imageHint": "mineral salt"
+    },
+    {
+      "id": "wheat-field",
+      "description": "Cereales y trigos",
+      "imageUrl": "https://picsum.photos/seed/wheat00/600/400",
+      "imageHint": "wheat grain"
+    },
+    {
+      "id": "equine-stable",
+      "description": "Caballos y equinos",
+      "imageUrl": "https://picsum.photos/seed/horse12/600/400",
+      "imageHint": "horse farm"
+    },
+    {
+      "id": "irrigation-system",
+      "description": "Sistemas de riego e insumos hídricos",
+      "imageUrl": "https://picsum.photos/seed/water98/600/400",
+      "imageHint": "irrigation pipe"
+    }
+  ]
+}

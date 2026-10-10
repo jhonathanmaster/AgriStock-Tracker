@@ -1,0 +1,135 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // FUNCIONES DE ACCESO GLOBAL
+    function isSuperAdmin() {
+      return request.auth != null && (
+        request.auth.uid == 'SvWvlCyfZugtPerM2IUhbxNsUVz2' || 
+        request.auth.token.email == 'jhonathanmaster@gmail.com'
+      );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isHabilitado() {
+      return request.auth != null && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.enabled == true)
+      );
+    }
+
+    // REGLA MAESTRA: El Super Admin tiene control total absoluto
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // REGLAS PARA CONFIGURACIONES GLOBALES (Editables solo por Admin)
+    match /config/{id} {
+      allow read: if isHabilitado();
+      allow write: if isAdmin();
+    }
+
+    match /unitConversions/{id} {
+      allow read: if isHabilitado();
+      allow write: if isAdmin();
+    }
+
+    match /expenseCategories/{id} {
+      allow read: if isHabilitado();
+      allow write: if isAdmin();
+    }
+
+    match /purchaseOrderStatuses/{id} {
+      allow read: if isHabilitado();
+      allow write: if isAdmin();
+    }
+
+    // ACCESO PÚBLICO PARA CATÁLOGO Y FILTROS
+    match /animalTypes/{id} {
+      allow get, list: if true; 
+      allow write: if isAdmin();
+    }
+
+    match /categories/{id} {
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /products/{id} {
+      allow get, list: if true;
+      allow write: if isHabilitado();
+    }
+
+    // REGLAS OPERATIVAS PRIVADAS (Lectura/Escritura para Habilitados)
+    match /expenses/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /suppliers/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /customers/{id} {
+      allow create, update: if true; // Permitir registro público y upsert de clientes desde el portal
+      allow read, delete: if isHabilitado();
+    }
+
+    match /inventoryMovements/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /inventoryAudits/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /purchaseOrders/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /orders/{id} {
+      allow create: if true; // Permitir que clientes hagan pedidos desde el portal
+      allow read, update, delete: if isHabilitado();
+    }
+
+    match /quotations/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /quotationCollections/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /quotationImportTrackings/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /credits/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    match /creditCollections/{id} {
+      allow read, write: if isHabilitado();
+    }
+
+    // REGLAS DE USUARIOS E INVITACIONES
+    match /users/{userId} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
+      allow write: if request.auth.uid == userId || isAdmin();
+    }
+
+    match /invitations/{email} {
+      allow get, update: if request.auth != null && request.auth.token.email.lower() == email.lower();
+      allow list, create, delete: if isAdmin();
+    }
+
+    // Versión: 2024-05-24_v75_import_tracking
+  }
+}

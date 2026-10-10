@@ -1,0 +1,323 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Información de perfil y estado de acceso del usuario.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "role": { "type": "string", "enum": ["admin", "operario"] },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "accessHistory": { 
+          "type": "array", 
+          "items": { "type": "string", "format": "date-time" }
+        },
+        "identificationNumber": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["uid", "email", "enabled", "role"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Proveedor de productos e insumos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "identificationNumber": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Insumo, animal o herramienta en el inventario.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "referenceCode": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "animalType": { "type": "string" },
+        "stock": { "type": "number" },
+        "stockInBundles": { "type": "number" },
+        "mainUnit": { "type": "string", "enum": ["libras", "kilos", "bultos", "unidades"] },
+        "costPrice": { "type": "number" },
+        "profitPercentage": { "type": "number" },
+        "salePrice": { "type": "number" },
+        "transportPricePerBundle": { "type": "number" },
+        "isImported": { "type": "boolean" },
+        "origin": { "type": "string" },
+        "importCost": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "InventoryMovement": {
+      "title": "InventoryMovement",
+      "description": "Registro de entrada, salida o venta de stock.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["entrada", "salida", "venta"] },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "movementDateTime": { "type": "string", "format": "date-time" },
+        "totalValue": { "type": "number" },
+        "subTotal": { "type": "number" },
+        "ivaPercentage": { "type": "number" },
+        "ivaValue": { "type": "number" },
+        "notes": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "customerIdentification": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "performedByName": { "type": "string" }
+      }
+    },
+    "Quotation": {
+      "title": "Quotation",
+      "description": "Presupuesto o cotización formal para un cliente.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "estimatedDeliveryDate": { "type": "string", "format": "date" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "customerIdentification": { "type": "string" },
+        "items": { "type": "array" },
+        "totalValue": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "QuotationCollection": {
+      "title": "QuotationCollection",
+      "description": "Registro de abonos a una cotización.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "quotationId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "amount": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "quotationId", "date", "amount"]
+    },
+    "QuotationImportTracking": {
+      "title": "QuotationImportTracking",
+      "description": "Seguimiento al proceso de importación asociado a una cotización.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "quotationId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "quotationId", "date", "status"]
+    },
+    "InventoryAudit": {
+      "title": "InventoryAudit",
+      "description": "Registro de verificación física de inventario.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "systemQuantity": { "type": "number" },
+        "verifiedQuantity": { "type": "number" },
+        "difference": { "type": "number" },
+        "unit": { "type": "string" },
+        "auditDate": { "type": "string", "format": "date-time" },
+        "performedBy": { "type": "string" },
+        "performedByName": { "type": "string" },
+        "notes": { "type": "string" },
+        "applied": { "type": "boolean" }
+      },
+      "required": ["productId", "verifiedQuantity", "auditDate", "performedBy"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Invitación enviada a un operario.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "operario"] },
+        "status": { "type": "string", "enum": ["pending", "accepted"] },
+        "enabled": { "type": "boolean" },
+        "token": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "invitedAt": { "type": "string", "format": "date-time" },
+        "acceptedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "status", "token", "expiresAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitValue": { "type": "number" },
+        "ivaPercentage": { "type": "number" },
+        "ivaValue": { "type": "number" },
+        "subTotal": { "type": "number" },
+        "total": { "type": "number" },
+        "supplierId": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date", "description", "category", "total"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Información de contacto del cliente.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "identificationNumber": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "lastPurchaseDate": { "type": "string", "format": "date-time" }
+      }
+    },
+    "PurchaseOrder": {
+      "title": "PurchaseOrder",
+      "description": "Pedido a proveedor para reabastecimiento.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "status": { "type": "string" },
+        "requestDate": { "type": "string", "format": "date-time" },
+        "deliveryDate": { "type": "string", "format": "date-time" },
+        "receivedDate": { "type": "string", "format": "date-time" },
+        "unitPrice": { "type": "number" },
+        "transportPrice": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Encargo o pedido solicitado por un cliente.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "requestDate": { "type": "string", "format": "date-time" },
+        "deliveryDate": { "type": "string", "format": "date-time" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "customerIdentification": { "type": "string" },
+        "items": { "type": "array" },
+        "payments": { "type": "array" },
+        "totalValue": { "type": "number" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "Credit": {
+      "title": "Credit",
+      "description": "Registro de ventas a crédito.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "items": { "type": "array" },
+        "totalValue": { "type": "number" },
+        "installments": { "type": "number" },
+        "status": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "agreementDate": { "type": "string", "format": "date" },
+        "expectedEndDate": { "type": "string", "format": "date" },
+        "notes": { "type": "string" }
+      }
+    },
+    "CreditCollection": {
+      "title": "CreditCollection",
+      "description": "Registro de abonos a un crédito.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creditId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "amount": { "type": "number" },
+        "notes": { "type": "string" }
+      }
+    },
+    "GlobalConfig": {
+      "title": "GlobalConfig",
+      "description": "Configuraciones globales del sistema.",
+      "type": "object",
+      "properties": {
+        "criticalStockThreshold": { "type": "number" },
+        "initialCapital": { "type": "number" },
+        "companyName": { "type": "string" },
+        "companyNit": { "type": "string" },
+        "companyAddress": { "type": "string" },
+        "companyPhone": { "type": "string" },
+        "companyEmail": { "type": "string" },
+        "representativeName": { "type": "string" },
+        "representativePosition": { "type": "string" }
+      }
+    },
+    "Category": { "title": "Category", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "AnimalType": { "title": "AnimalType", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "ExpenseCategory": { "title": "ExpenseCategory", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" } } },
+    "UnitConversion": { "title": "UnitConversion", "type": "object", "properties": { "id": { "type": "string" }, "from": { "type": "string" }, "to": { "type": "string" }, "factor": { "type": "number" } } },
+    "PurchaseOrderStatusDefinition": { "title": "PurchaseOrderStatusDefinition", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "description": { "type": "string" }, "color": { "type": "string" }, "order": { "type": "number" } } }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/backend/entities/UserProfile" }, "description": "Perfiles de usuario" },
+    "/invitations/{email}": { "schema": { "$ref": "#/backend/entities/Invitation" }, "description": "Invitaciones a operarios" },
+    "/expenses/{expenseId}": { "schema": { "$ref": "#/backend/entities/Expense" }, "description": "Gastos operativos" },
+    "/orders/{orderId}": { "schema": { "$ref": "#/backend/entities/Order" }, "description": "Pedidos de clientes" },
+    "/quotations/{quotationId}": { "schema": { "$ref": "#/backend/entities/Quotation" }, "description": "Presupuestos para clientes" },
+    "/quotationCollections/{collectionId}": { "schema": { "$ref": "#/backend/entities/QuotationCollection" }, "description": "Abonos a cotizaciones" },
+    "/quotationImportTrackings/{trackingId}": { "schema": { "$ref": "#/backend/entities/QuotationImportTracking" }, "description": "Seguimiento de importación" },
+    "/credits/{creditId}": { "schema": { "$ref": "#/backend/entities/Credit" }, "description": "Ventas a crédito" },
+    "/creditCollections/{collectionId}": { "schema": { "$ref": "#/backend/entities/CreditCollection" }, "description": "Abonos a créditos" },
+    "/config/{configId}": { "schema": { "$ref": "#/backend/entities/GlobalConfig" }, "description": "Configuración global" },
+    "/expenseCategories/{categoryId}": { "schema": { "$ref": "#/backend/entities/ExpenseCategory" }, "description": "Categorías de gastos" },
+    "/unitConversions/{conversionId}": { "schema": { "$ref": "#/backend/entities/UnitConversion" }, "description": "Conversiones de unidades" },
+    "/products/{productId}": { "schema": { "$ref": "#/backend/entities/Product" }, "description": "Catálogo de productos" },
+    "/suppliers/{supplierId}": { "schema": { "$ref": "#/backend/entities/Supplier" }, "description": "Directorio de proveedores" },
+    "/customers/{customerId}": { "schema": { "$ref": "#/backend/entities/Customer" }, "description": "Directorio de clientes" },
+    "/inventoryMovements/{movementId}": { "schema": { "$ref": "#/backend/entities/InventoryMovement" }, "description": "Historial de stock" },
+    "/inventoryAudits/{auditId}": { "schema": { "$ref": "#/backend/entities/InventoryAudit" }, "description": "Auditorías físicas" },
+    "/purchaseOrders/{orderId}": { "schema": { "$ref": "#/backend/entities/PurchaseOrder" }, "description": "Órdenes a proveedores" },
+    "/purchaseOrderStatuses/{statusId}": { "schema": { "$ref": "#/backend/entities/PurchaseOrderStatusDefinition" }, "description": "Estados de O.C." },
+    "/animalTypes/{animalId}": { "schema": { "$ref": "#/backend/entities/AnimalType" }, "description": "Tipos de animales" },
+    "/categories/{categoryId}": { "schema": { "$ref": "#/backend/entities/Category" }, "description": "Categorías de productos" }
+  }
+}
