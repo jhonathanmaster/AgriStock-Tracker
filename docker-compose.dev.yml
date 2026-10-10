@@ -1,0 +1,52 @@
+# Development with live preview:
+#   docker compose -f docker-compose.dev.yml up
+# Edits in src/ show up in the browser right away. Uses the same database as the normal mode.
+name: geiatienda
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: geiatienda
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geiatienda}
+      POSTGRES_DB: geiatienda
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geiatienda -d geiatienda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app-dev:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh scripts/dev-entrypoint.sh
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://geiatienda:${POSTGRES_PASSWORD:-geiatienda}@db:5432/geiatienda
+      NODE_ENV: development
+      PORT: 3000
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${APP_PORT:-3001}}
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "${APP_PORT:-3001}:3000"
+    volumes:
+      - .:/app
+      # Linux packages and the Next.js cache live in volumes, separate from the Mac's files.
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+
+volumes:
+  pgdata:
+  node_modules:
+  next_cache:

@@ -30,10 +30,10 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, signOut } from '@/lib/session';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { signOut } from 'firebase/auth';
 import { useAgriStock } from '@/lib/store';
+import { AccountDialog } from '@/components/AccountDialog';
 import {
   Sidebar,
   SidebarContent,
@@ -78,9 +78,9 @@ export function Navigation() {
   const pathname = usePathname();
   const { user, isUserLoading } = useUser();
   const { isAdmin } = useAgriStock();
-  const auth = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -93,7 +93,7 @@ export function Navigation() {
   }
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await signOut();
     router.push('/?view=site');
   };
 
@@ -178,7 +178,11 @@ export function Navigation() {
         <SidebarMenu>
           {user && (
             <SidebarMenuItem>
-              <div className="flex items-center gap-3 px-2 py-2 group-data-[collapsible=icon]:px-0">
+              <button
+                type="button"
+                title="Mi cuenta"
+                onClick={() => setAccountOpen(true)}
+                className="w-full text-left flex items-center gap-3 px-2 py-2 rounded-md hover:bg-secondary/50 group-data-[collapsible=icon]:px-0">
                 <Avatar className="h-8 w-8 shrink-0 border border-border">
                   <AvatarImage src={user.photoURL || ''} />
                   <AvatarFallback className="bg-primary/10 text-primary">
@@ -189,7 +193,8 @@ export function Navigation() {
                   <p className="text-xs font-bold text-foreground truncate">{user.displayName || 'Usuario'}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
                 </div>
-              </div>
+              </button>
+              <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} email={user.email} hasPassword={!!user.hasPassword} />
             </SidebarMenuItem>
           )}
           <SidebarMenuItem>

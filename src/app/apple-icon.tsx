@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { SproutSvg } from './sprout-svg'
  
 /**
  * Generador dinámico de Apple Touch Icon para GeiaTienda.
@@ -25,7 +26,7 @@ export default function Icon() {
           color: 'white',
         }}
       >
-        🌾
+        <SproutSvg size={120} />
       </div>
     ),
     {

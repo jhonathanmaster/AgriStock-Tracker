@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   ClipboardCheck, 
@@ -28,8 +28,8 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { sendPurchaseOrderEmail } from '@/ai/flows/send-purchase-order-email';
-import { sendReceiveConfirmationAdminEmail } from '@/ai/flows/send-receive-confirmation-admin-email';
+import { sendPurchaseOrderEmail } from '@/server/email/send-purchase-order-email';
+import { sendReceiveConfirmationAdminEmail } from '@/server/email/send-receive-confirmation-admin-email';
 import { PurchaseOrder } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 

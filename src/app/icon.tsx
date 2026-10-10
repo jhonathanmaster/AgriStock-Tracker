@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { SproutSvg } from './sprout-svg'
  
 /**
  * Generador dinámico de favicon e iconos para GeiaTienda.
@@ -26,7 +27,7 @@ export default function Icon() {
           color: 'white',
         }}
       >
-        🌾
+        <SproutSvg size={22} />
       </div>
     ),
     {

@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -68,9 +68,9 @@ import { Quotation, UnitType, Customer, QuotationItem, QuotationCollection, Quot
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { sendSimulationEmail } from '@/ai/flows/send-simulation-email';
-import { sendQuotationEmail } from '@/ai/flows/send-quotation-email';
-import { sendCollectionReceiptEmail } from '@/ai/flows/send-collection-receipt-email';
+import { sendSimulationEmail } from '@/server/email/send-simulation-email';
+import { sendQuotationEmail } from '@/server/email/send-quotation-email';
+import { sendCollectionReceiptEmail } from '@/server/email/send-collection-receipt-email';
 import { cn } from '@/lib/utils';
 
 type SortConfig = {

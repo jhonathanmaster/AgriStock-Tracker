@@ -1,0 +1,44 @@
+# GeiaTienda Tracker: PostgreSQL + app.
+#   docker compose up --build        -> http://localhost:3001
+# Settings (Google sign-in, Gmail, owner email) go in a .env file next to this one.
+name: geiatienda
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: geiatienda
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geiatienda}
+      POSTGRES_DB: geiatienda
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Only on this machine, for tools like psql, TablePlus or `npm run dev`.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geiatienda -d geiatienda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: geiatienda-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://geiatienda:${POSTGRES_PASSWORD:-geiatienda}@db:5432/geiatienda
+      NODE_ENV: production
+      PORT: 3000
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${APP_PORT:-3001}}
+    ports:
+      - "${APP_PORT:-3001}:3000"
+
+volumes:
+  pgdata:

@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { ProductForm } from '@/components/ProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -151,7 +151,8 @@ export default function InventoryPage() {
   };
 
   const handleUpdate = (updatedProduct: Product) => {
-    updateProduct(updatedProduct.id, updatedProduct);
+    // Pass the stock shown when the form opened: only the difference is applied.
+    updateProduct(updatedProduct.id, updatedProduct, editingProduct?.stock);
     setEditingProduct(null);
     toast({
       title: "Producto Actualizado",

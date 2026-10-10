@@ -26,7 +26,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { sendContactEmail } from '@/ai/flows/send-contact-email';
+import { sendContactEmail } from '@/server/email/send-contact-email';
 
 export default function ContactPage() {
   const { toast } = useToast();

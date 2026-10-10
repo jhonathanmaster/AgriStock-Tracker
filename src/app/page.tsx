@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, signOut } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Package, 
@@ -42,7 +42,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { signOut } from 'firebase/auth';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -421,7 +420,6 @@ function HomeContent() {
   
   const { user, isUserLoading } = useUser();
   const searchParams = useSearchParams();
-  const auth = useAuth();
   const router = useRouter();
   
   const viewParam = searchParams.get('view');
@@ -463,7 +461,7 @@ function HomeContent() {
           Por favor, contacta a soporte para obtener acceso al sistema.
         </p>
         <Button onClick={async () => {
-          await signOut(auth);
+          await signOut();
           router.push('/');
         }} variant="outline">Cerrar Sesión</Button>
       </div>

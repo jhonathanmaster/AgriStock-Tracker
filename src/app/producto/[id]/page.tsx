@@ -3,6 +3,7 @@
 
 import { use, useMemo, useState, useEffect } from 'react';
 import { useAgriStock } from '@/lib/store';
+import { api, RequestError } from '@/lib/data-store';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,7 +72,7 @@ const addBusinessDays = (startDate: Date, days: number) => {
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: slug } = use(params);
-  const { products, addOrder, saveCustomer, isLoading } = useAgriStock();
+  const { products, isLoading } = useAgriStock();
   const { toast } = useToast();
 
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
@@ -124,42 +125,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
     setIsSubmitting(true);
     try {
-      const now = new Date();
-      const deliveryDate = addBusinessDays(now, 3);
-      const qty = parseFloat(formData.quantity);
-      const totalVal = (product.salePrice || 0) * qty;
-
-      // 1. Guardar o actualizar cliente en el directorio
-      const customerId = saveCustomer({
-        name: formData.customerName,
-        phone: formData.customerPhone,
-        email: formData.customerEmail,
-        address: formData.customerAddress,
-        identificationNumber: formData.customerIdentification
-      });
-
-      // 2. Crear la orden (Encargo) con el nuevo formato multi-producto
-      addOrder({
-        customerId: customerId,
+      // The server takes the price from the catalog, saves the customer and creates the order.
+      await api('POST', '/api/public/orders', {
+        productId: product.id,
+        quantity: parseFloat(formData.quantity),
         customerName: formData.customerName,
         customerPhone: formData.customerPhone,
+        customerEmail: formData.customerEmail,
         customerAddress: formData.customerAddress,
         customerIdentification: formData.customerIdentification,
-        customerEmail: formData.customerEmail,
-        items: [{
-          productId: product.id,
-          productName: product.name,
-          quantity: qty,
-          unit: product.mainUnit as UnitType,
-          price: product.salePrice,
-          total: totalVal
-        }],
-        payments: [],
-        totalValue: totalVal,
-        status: 'pending',
-        requestDate: now.toISOString(),
-        deliveryDate: deliveryDate.toISOString(),
-        notes: 'Pedido realizado desde el portal web público.'
       });
 
       setOrderSuccess(true);
@@ -167,7 +141,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
     } catch (error) {
       console.error("Fallo al procesar pedido:", error);
-      toast({ variant: "destructive", title: "Error", description: "No se pudo procesar tu solicitud en este momento." });
+      toast({ variant: "destructive", title: "Error", description: error instanceof RequestError && error.status < 500 ? error.message : "No se pudo procesar tu solicitud en este momento." });
     } finally {
       setIsSubmitting(false);
     }
