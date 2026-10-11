@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,7 +19,7 @@ import {
   Eye, 
   Pencil, 
   Trash2, 
-  ImageIcon, 
+  Image as ImageIcon, 
   TrendingUp, 
   Wallet, 
   Coins, 
@@ -357,7 +356,7 @@ export default function InventoryPage() {
           <div className="bg-white p-4 rounded-xl border border-accent/20 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="w-3 h-3 text-accent" />
-              <span className="text-[10px] uppercase font-black text-muted-foreground tracking-wider leading-none">Venta Proyectada</span>
+              <span className="text-[10px] uppercase font-black text-muted-foreground tracking-wider font-black">Venta Proyectada</span>
             </div>
             <span className="text-lg font-black text-accent leading-none">
               ${globalFinancials.totalProjected.toLocaleString('en-US', { minimumFractionDigits: 2 })}

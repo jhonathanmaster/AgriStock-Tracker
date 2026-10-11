@@ -100,28 +100,20 @@ export default function OrdersPage() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
 
-  // Cliente buscador state
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-
-  // Items State (dentro del formulario)
   const [formItems, setFormItems] = useState<OrderItem[]>([]);
   const [formPayments, setFormPayments] = useState<OrderPayment[]>([]);
   
-  // New Item Temporary State
   const [newItemProductId, setNewItemProductId] = useState('');
   const [newItemQty, setNewItemQty] = useState('1');
   const [newItemUnit, setNewItemUnit] = useState<UnitType>('kilos');
   const [newItemPrice, setNewItemPrice] = useState('');
 
-  // New Payment Temporary State
   const [newPayAmount, setNewPayAmount] = useState('');
   const [newPayMethod, setNewPayMethod] = useState<PaymentMethod>('efectivo');
   const [newPayNotes, setNewPayNotes] = useState('');
 
-  // Sorting State - Adjusted to deliveryDate DESC by default
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'deliveryDate', direction: 'desc' });
-
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
@@ -143,6 +135,7 @@ export default function OrdersPage() {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
+    // Only set on client to avoid hydration mismatch
     const today = new Date().toISOString().split('T')[0];
     setFormData(prev => ({ ...prev, requestDate: prev.requestDate || today }));
   }, [user, isUserLoading, router]);

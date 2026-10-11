@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview Flujo para el envío de cotizaciones formales por correo electrónico con identidad corporativa.
- * Se optimizó el manejo de imágenes mediante adjuntos CID para asegurar su visualización en gestores de correo.
+ * Se optimizó el manejo de imágenes (Logo, Firma y Productos) mediante adjuntos CID para asegurar su visualización.
  */
 
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import { defineEmailAction, getTransporter } from './transport';
 const QuotationItemSchema = z.object({
   productName: z.string(),
   specifications: z.string().optional(),
+  imageUrl: z.string().optional(),
   quantity: z.number(),
   unit: z.string(),
   price: z.number(),
@@ -62,6 +63,7 @@ const sendQuotationFlow = defineEmailAction(
     let logoHtmlSrc = input.logoUrl;
     let signatureHtmlSrc = input.signatureUrl;
 
+    // 1. Procesar Logo CID
     if (input.logoUrl && input.logoUrl.startsWith('data:')) {
       attachments.push({
         filename: 'logo.png',
@@ -71,6 +73,7 @@ const sendQuotationFlow = defineEmailAction(
       logoHtmlSrc = 'cid:company-logo';
     }
 
+    // 2. Procesar Firma CID
     if (input.signatureUrl && input.signatureUrl.startsWith('data:')) {
       attachments.push({
         filename: 'signature.png',
@@ -80,11 +83,35 @@ const sendQuotationFlow = defineEmailAction(
       signatureHtmlSrc = 'cid:rep-signature';
     }
 
-    const itemsHtml = input.items.map(item => `
+    // 3. Procesar Imágenes de Productos CID
+    const itemsWithHtmlSrc = input.items.map((item, idx) => {
+      let itemHtmlSrc = item.imageUrl;
+      if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+        const cid = `item-img-${idx}`;
+        attachments.push({
+          filename: `product-${idx}.png`,
+          path: item.imageUrl,
+          cid: cid
+        });
+        itemHtmlSrc = `cid:${cid}`;
+      }
+      return { ...item, htmlSrc: itemHtmlSrc };
+    });
+
+    const itemsHtml = itemsWithHtmlSrc.map(item => `
       <tr>
         <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb;">
-          <div style="font-weight: bold; color: #111;">${item.productName}</div>
-          ${item.specifications ? `<div style="font-size: 11px; color: #6b7280; font-style: italic; margin-top: 4px;">${item.specifications}</div>` : ''}
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${item.htmlSrc ? `
+              <div style="width: 45px; height: 45px; border-radius: 6px; overflow: hidden; border: 1px solid #eee; background-color: #f9fafb; flex-shrink: 0;">
+                <img src="${item.htmlSrc}" alt="${item.productName}" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+            ` : ''}
+            <div>
+              <div style="font-weight: bold; color: #111; font-size: 14px;">${item.productName}</div>
+              ${item.specifications ? `<div style="font-size: 11px; color: #6b7280; font-style: italic; margin-top: 4px;">${item.specifications}</div>` : ''}
+            </div>
+          </div>
         </td>
         <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #374151;">${item.quantity} ${item.unit}</td>
         <td style="padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #374151;">$${item.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>

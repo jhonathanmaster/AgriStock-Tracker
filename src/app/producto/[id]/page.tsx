@@ -78,6 +78,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [estDeliveryDate, setEstDeliveryDate] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+    // Defer date calculation to client side to avoid hydration mismatch
+    const delivery = addBusinessDays(new Date(), 3);
+    setEstDeliveryDate(delivery.toLocaleDateString('es-ES', { dateStyle: 'long' }));
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -95,7 +104,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     return products.find(p => slugify(p.name) === slug);
   }, [products, slug]);
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading || !mounted) return <LoadingScreen />;
 
   if (!product) {
     return (
@@ -179,7 +188,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="min-h-screen bg-[#F6F8ED] flex flex-col">
-      {/* HEADER */}
       <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -219,7 +227,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       <main className="container mx-auto px-4 py-12 flex-1 max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          {/* GALERÍA / IMAGEN */}
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-2xl bg-white aspect-square relative rounded-[2rem]">
               {product.imageUrl ? (
@@ -265,7 +272,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* INFORMACIÓN */}
           <div className="space-y-8 lg:pt-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -361,7 +367,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </main>
 
-      {/* DIALOG DE SOLICITUD */}
       <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
         <DialogContent className="max-w-md rounded-[2rem] overflow-hidden">
           {!orderSuccess ? (
@@ -453,7 +458,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   <CalendarCheck className="w-5 h-5 text-accent shrink-0" />
                   <p className="text-[10px] text-accent font-bold leading-tight uppercase">
                     Fecha estimada de entrega: <br/>
-                    <span className="text-xs">{addBusinessDays(new Date(), 3).toLocaleDateString('es-ES', { dateStyle: 'long' })}</span>
+                    <span className="text-xs">{estDeliveryDate}</span>
                   </p>
                 </div>
 
@@ -493,7 +498,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </DialogContent>
       </Dialog>
 
-      {/* FOOTER */}
       <footer className="bg-white border-t border-border py-12 mt-12">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="space-y-4">

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { QuickSale } from '@/components/QuickSale';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   DollarSign, 
   Eye, 
   Pencil, 
@@ -23,7 +22,7 @@ import {
   Info, 
   ChevronLeft, 
   ChevronRight, 
-  History,
+  History as HistoryIcon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -61,20 +60,16 @@ export default function SalesPage() {
   const [editingSale, setEditingSale] = useState<StockMovement | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   
-  // States para Filtros
   const [filterRecent, setFilterRecent] = useState(false);
   const [searchProductName, setSearchProductName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Sorting State
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'movementDateTime', direction: 'desc' });
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Edit States
   const [editDate, setEditDate] = useState('');
   const [editQty, setEditQty] = useState('');
   const [editUnit, setEditUnit] = useState<UnitType>('kilos');
@@ -127,14 +122,12 @@ export default function SalesPage() {
   const salesHistory = useMemo(() => {
     let list = movements.filter(m => m.type === 'venta');
     
-    // Filtro por Recientes (7 días)
     if (filterRecent) {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       list = list.filter(sale => new Date(sale.movementDateTime) >= sevenDaysAgo);
     }
 
-    // Filtro por Nombre de Producto
     if (searchProductName.trim()) {
       list = list.filter(sale => {
         const product = products.find(p => p.id === sale.productId);
@@ -142,7 +135,6 @@ export default function SalesPage() {
       });
     }
 
-    // Filtro por Rango de Fechas
     if (startDate) {
       list = list.filter(sale => sale.movementDateTime.split('T')[0] >= startDate);
     }
@@ -150,7 +142,6 @@ export default function SalesPage() {
       list = list.filter(sale => sale.movementDateTime.split('T')[0] <= endDate);
     }
 
-    // Ordenamiento
     if (sortConfig.direction) {
       list = [...list].sort((a, b) => {
         let valA: any;
@@ -336,13 +327,12 @@ export default function SalesPage() {
                   className={cn("gap-2 h-8 font-bold text-[10px] uppercase tracking-wider", filterRecent && "bg-accent hover:bg-accent/90")}
                   onClick={() => setFilterRecent(!filterRecent)}
                 >
-                  {filterRecent ? <History className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
+                  {filterRecent ? <HistoryIcon className="w-3.5 h-3.5" /> : <CalendarIcon className="w-3.5 h-3.5" />}
                   {filterRecent ? "Ver Todo" : "Recientes (7d)"}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* BARRA DE FILTROS AVANZADOS */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-muted/20 p-4 rounded-xl border border-border shadow-inner">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground">Buscar Producto</Label>
@@ -504,7 +494,6 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* DIALOGS Y ALERTDIALOGS */}
       <Dialog open={!!viewingSale} onOpenChange={(o) => !o && setViewingSale(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -585,7 +574,7 @@ export default function SalesPage() {
           <form onSubmit={handleUpdate} className="space-y-4 py-4">
             <div className="space-y-2 bg-muted/20 p-3 rounded-lg border border-dashed border-border">
               <Label className="flex items-center gap-2 mb-2">
-                <CalendarDays className="w-4 h-4 text-primary" />
+                <CalendarIcon className="w-4 h-4 text-primary" />
                 Fecha de la Venta
               </Label>
               <Input 

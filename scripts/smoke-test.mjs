@@ -188,6 +188,41 @@ check('precio del pedido tomado del servidor', order && near(order.totalValue, 2
 const cust = (await data(admin, 'customers')).customers.find((x) => x.id === c1);
 check('el portal no sobrescribe datos de un cliente existente', cust?.name === 'Cliente Smoke 2');
 
+console.log('logística');
+r = await op('POST', '/api/data/trucks', { plate: 'smk123', capacityTons: 10, status: 'available' });
+check('un operario no puede crear camiones (403)', r.status === 403, JSON.stringify(r.json));
+r = await admin('POST', '/api/data/trucks', { plate: `smk${String(stamp).slice(-3)}`, brand: 'Prueba', capacityTons: 10, averageKmPerGallon: 12 });
+const truckId = r.json?.id;
+check('admin crea camión (placa en mayúsculas)', r.status === 201 && truckId && r.json.plate === r.json.plate.toUpperCase(), JSON.stringify(r.json));
+r = await op('POST', '/api/data/transportServices', {
+  truckId, customerName: 'Cliente Flete', customerPhone: '3001112233', origin: 'Cali', destination: 'Buga',
+  totalFreightPrice: 500000, totalPaid: 999999, paymentStatus: 'paid', expenses: [{ id: 'e1', type: 'gasoline', amount: 80000, date: new Date().toISOString() }],
+});
+const serviceId = r.json?.id;
+check('crea servicio de transporte', r.status === 201 && serviceId, JSON.stringify(r.json));
+check('el navegador no puede fijar lo abonado', r.json && near(r.json.totalPaid, 0) && r.json.paymentStatus === 'pending', JSON.stringify(r.json));
+await Promise.all([
+  op('POST', '/api/data/transportCollections', { serviceId, amount: 200000, method: 'efectivo' }),
+  admin('POST', '/api/data/transportCollections', { serviceId, amount: 100000, method: 'transferencia' }),
+]);
+const service = async () => (await data(admin, 'transportServices')).transportServices.find((x) => x.id === serviceId);
+let svc = await service();
+check('dos abonos simultáneos suman 300000 (parcial)', svc && near(svc.totalPaid, 300000) && svc.paymentStatus === 'partial', JSON.stringify(svc));
+r = await op('POST', '/api/data/transportCollections', { serviceId, amount: 200000 });
+const lastCollection = r.json?.id;
+svc = await service();
+check('al completar el flete queda pagado', near(svc.totalPaid, 500000) && svc.paymentStatus === 'paid', JSON.stringify(svc));
+await op('DELETE', `/api/data/transportCollections/${lastCollection}`);
+svc = await service();
+check('borrar un abono recalcula el saldo', near(svc.totalPaid, 300000) && svc.paymentStatus === 'partial', JSON.stringify(svc));
+r = await op('POST', '/api/data/transportCollections', { serviceId: 'no-existe', amount: 1 });
+check('abono a un servicio inexistente 404', r.status === 404, JSON.stringify(r.json));
+r = await anon('POST', '/api/public/transport-requests', { customerName: 'Visitante Flete', customerPhone: '300 444 5566', origin: 'Palmira', destination: 'Tuluá', cargoDescription: '20 bultos' });
+check('solicitud pública de transporte aceptada', r.status === 201, JSON.stringify(r.json));
+const req = (await data(admin, 'transportServices')).transportServices.find((x) => x.customerName === 'Visitante Flete');
+check('la solicitud queda pendiente y sin precio', req && req.status === 'pending' && near(req.totalFreightPrice, 0), JSON.stringify(req));
+check('anónimo no lee servicios (401)', (await anon('GET', '/api/data?only=transportServices')).status === 401);
+
 console.log('versiones (sincronización)');
 const v1 = (await op('GET', '/api/data/versions')).json.versions;
 await op('POST', '/api/movements', { productId, type: 'entrada', quantity: 1, unit: 'kilos' });

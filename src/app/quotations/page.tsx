@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
 import { useUser } from '@/lib/session';
@@ -38,7 +39,7 @@ import {
   ListPlus,
   Truck,
   Coins,
-  History,
+  History as HistoryIcon,
   Globe,
   Calculator,
   DollarSign,
@@ -49,7 +50,11 @@ import {
   MessageSquare,
   Keyboard,
   FileCheck,
-  Share2
+  Image as LucideImage,
+  Upload,
+  ZoomIn,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -81,6 +86,7 @@ type SortConfig = {
 interface CalcItem {
   productName: string;
   specifications: string;
+  imageUrl?: string;
   quantity: number;
   usdPrice: number;
   trm: number;
@@ -131,6 +137,7 @@ export default function QuotationsPage() {
   const [managingCollectionsFor, setManagingCollectionsFor] = useState<Quotation | null>(null);
   const [managingImportFor, setManagingImportFor] = useState<Quotation | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
+  const [imageToPreview, setImageToPreview] = useState<string | null>(null);
 
   const [newCollectionAmount, setNewCollectionAmount] = useState('');
   const [newCollectionDate, setNewCollectionDate] = useState('');
@@ -150,10 +157,15 @@ export default function QuotationsPage() {
   const [newItemUnit, setNewItemUnit] = useState<UnitType>('kilos');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemSpecs, setNewItemSpecs] = useState('');
+  const [newItemImageUrl, setNewItemImageUrl] = useState('');
+  
+  const itemImageInputRef = useRef<HTMLInputElement>(null);
+  const calcImageInputRef = useRef<HTMLInputElement>(null);
 
   const [calcItems, setCalcItems] = useState<CalcItem[]>([]);
   const [calcProductName, setCalcProductName] = useState('');
   const [calcSpecifications, setCalcSpecifications] = useState('');
+  const [calcImageUrl, setCalcImageUrl] = useState('');
   const [calcQty, setCalcQty] = useState('1');
   const [calcUsdPrice, setCalcUsdPrice] = useState('');
   const [calcTrm, setCalcTrm] = useState('4000'); 
@@ -175,7 +187,8 @@ export default function QuotationsPage() {
     customerEmail: '',
     customerAddress: '',
     identificationNumber: '',
-    notes: ''
+    notes: '',
+    approved: 'no' as 'si' | 'no'
   });
 
   useEffect(() => {
@@ -231,6 +244,36 @@ export default function QuotationsPage() {
     toast({ title: "Cliente Seleccionado" });
   };
 
+  const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 800 * 1024) {
+        toast({ variant: "destructive", title: "Imagen pesada", description: "Elige una imagen menor a 800KB." });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewItemImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCalcImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 800 * 1024) {
+        toast({ variant: "destructive", title: "Imagen pesada", description: "Elige una imagen menor a 800KB." });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCalcImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddItem = () => {
     const product = products.find(p => p.id === newItemProductId);
     const name = product ? product.name : newItemCustomName.trim();
@@ -251,6 +294,7 @@ export default function QuotationsPage() {
       productId: product ? product.id : `manual-${Math.random().toString(36).substring(7)}`,
       productName: name,
       specifications: newItemSpecs.trim(),
+      imageUrl: newItemImageUrl || (product?.imageUrl || ''),
       quantity: qty,
       unit: newItemUnit,
       price: price,
@@ -264,6 +308,7 @@ export default function QuotationsPage() {
     setNewItemQty('1');
     setNewItemPrice('');
     setNewItemSpecs('');
+    setNewItemImageUrl('');
   };
 
   const handleAddCalcItem = () => {
@@ -288,6 +333,7 @@ export default function QuotationsPage() {
     const newItem: CalcItem = {
       productName: calcProductName,
       specifications: calcSpecifications,
+      imageUrl: calcImageUrl,
       quantity: qty,
       usdPrice,
       trm,
@@ -302,6 +348,7 @@ export default function QuotationsPage() {
     setCalcItems(prev => [...prev, newItem]);
     setCalcProductName('');
     setCalcSpecifications('');
+    setCalcImageUrl('');
     setCalcQty('1');
     setCalcUsdPrice('');
   };
@@ -336,6 +383,19 @@ export default function QuotationsPage() {
     return list;
   }, [quotations, searchTerm, sortConfig]);
 
+  const quotationTotalsSummary = useMemo(() => {
+    return filteredQuotations.reduce((acc, q) => {
+      const collected = (quotationCollections || []).filter(coll => coll.quotationId === q.id).reduce((s, c) => s + (c.amount || 0), 0);
+      acc.totalValue += q.totalValue;
+      acc.totalCollected += collected;
+      acc.totalPending += (q.totalValue - collected);
+      if (q.approved === 'si') {
+        acc.totalApprovedValue += q.totalValue;
+      }
+      return acc;
+    }, { totalValue: 0, totalCollected: 0, totalPending: 0, totalApprovedValue: 0 });
+  }, [filteredQuotations, quotationCollections]);
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (formItems.length === 0 || !formData.customerName || !formData.customerPhone) {
@@ -363,7 +423,8 @@ export default function QuotationsPage() {
       totalValue: currentTotalValue,
       date: formData.date ? new Date(formData.date).toISOString() : new Date().toISOString(),
       estimatedDeliveryDate: formData.estimatedDeliveryDate || null,
-      notes: formData.notes || ''
+      notes: formData.notes || '',
+      approved: formData.approved
     };
 
     if (editingQuotation) {
@@ -463,11 +524,13 @@ export default function QuotationsPage() {
       customerEmail: '',
       customerAddress: '',
       identificationNumber: '',
-      notes: '' 
+      notes: '',
+      approved: 'no'
     });
     setFormItems([]);
     setEditingQuotation(null);
     setCustomerSearchQuery('');
+    setNewItemImageUrl('');
   };
 
   const handleEdit = (quotation: Quotation) => {
@@ -482,7 +545,8 @@ export default function QuotationsPage() {
       customerEmail: quotation.customerEmail || '',
       customerAddress: quotation.customerAddress || '',
       identificationNumber: quotation.customerIdentification || '',
-      notes: quotation.notes || ''
+      notes: quotation.notes || '',
+      approved: quotation.approved || 'no'
     });
     setIsCreateOpen(true);
   };
@@ -531,11 +595,12 @@ export default function QuotationsPage() {
             table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
             th { text-align: left; padding: 12px; border-bottom: 2px solid #E5E7EB; background: #F9FAFB; text-transform: uppercase; font-size: 12px; color: #4D7C0F; }
             td { padding: 12px; border-bottom: 1px solid #F3F4F6; font-size: 14px; vertical-align: top; }
+            .item-image { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; margin-right: 10px; float: left; }
             .text-right { text-align: right; }
             .totals { margin-top: 20px; text-align: right; }
             .total-box { display: inline-block; padding: 15px 30px; background: #4D7C0F; color: white; border-radius: 8px; font-size: 20px; font-weight: 900; }
             .notes { margin-top: 40px; font-size: 12px; color: #666; border-top: 1px dashed #ccc; padding-top: 20px; }
-            .specs { font-size: 10px; color: #666; font-style: italic; margin-top: 4px; display: block; }
+            .specs { font-size: 10px; color: #666; font-style: italic; margin-top: 4px; display: block; clear: both; }
             .signature-block { margin-top: 50px; }
             .signature-img { max-height: 60px; max-width: 200px; display: block; margin-bottom: 5px; }
             .rep-name { font-weight: bold; font-size: 14px; }
@@ -589,6 +654,7 @@ export default function QuotationsPage() {
               ${q.items.map(item => `
                 <tr>
                   <td>
+                    ${item.imageUrl ? `<img src="${item.imageUrl}" class="item-image" />` : ''}
                     <div style="font-weight: bold">${item.productName}</div>
                     ${item.specifications ? `<span class="specs">${item.specifications}</span>` : ''}
                   </td>
@@ -649,6 +715,10 @@ export default function QuotationsPage() {
       const result = await sendSimulationEmail({
         recipientEmail: simRecipientEmail,
         companyName: companyInfo.name || 'GeiaTienda',
+        logoUrl: companyInfo.logoUrl,
+        signatureUrl: companyInfo.signatureUrl,
+        representativeName: companyInfo.representativeName,
+        representativePosition: companyInfo.representativePosition,
         items: calcItems,
         totalValue: currentCalcTotal
       });
@@ -838,6 +908,7 @@ export default function QuotationsPage() {
               <TableHead className="cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => handleSort('date')}>
                 <div className="flex items-center">Fecha <SortIcon column="date" /></div>
               </TableHead>
+              <TableHead>Aprobado</TableHead>
               <TableHead className="cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => handleSort('customerName')}>
                 <div className="flex items-center">Cliente <SortIcon column="customerName" /></div>
               </TableHead>
@@ -852,7 +923,7 @@ export default function QuotationsPage() {
           <TableBody>
             {paginatedQuotations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                   No hay cotizaciones registradas.
                 </TableCell>
               </TableRow>
@@ -865,6 +936,13 @@ export default function QuotationsPage() {
                 <TableRow key={q.id}>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(q.date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {q.approved === 'si' ? (
+                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600 bg-green-50"><CheckCircle2 className="w-3 h-3" /> Sí</Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 text-muted-foreground border-muted-foreground/30 bg-muted/5"><XCircle className="w-3 h-3" /> No</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="text-xs font-bold text-primary">{q.customerName}</div>
@@ -952,6 +1030,49 @@ export default function QuotationsPage() {
         </div>
       </div>
 
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-primary">Valor Total Propuestas (Filtrado)</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-primary">
+              ${quotationTotalsSummary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-accent/5 border-accent/20">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-accent">Total Propuestas Aprobadas</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-accent">
+              ${quotationTotalsSummary.totalApprovedValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-green-600">Total Abonos Recibidos</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-green-700">
+              ${quotationTotalsSummary.totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/5 border-destructive/20">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-destructive">Saldo Total Pendiente</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-destructive">
+              ${quotationTotalsSummary.totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
         <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
@@ -988,17 +1109,57 @@ export default function QuotationsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground font-bold flex items-center gap-2 uppercase text-[10px] tracking-widest">
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    Especificaciones Técnicas
-                  </Label>
-                  <Textarea 
-                    placeholder="Detalles técnicos, materiales, dimensiones..."
-                    value={calcSpecifications}
-                    onChange={e => setCalcSpecifications(e.target.value)}
-                    className="bg-white min-h-[80px]"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground font-bold flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Especificaciones Técnicas
+                    </Label>
+                    <Textarea 
+                      placeholder="Detalles técnicos, materiales, dimensiones..."
+                      value={calcSpecifications}
+                      onChange={e => setCalcSpecifications(e.target.value)}
+                      className="bg-white min-h-[100px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                      <LucideImage className="w-3 h-3 text-primary" />
+                      Imagen del Ítem
+                    </Label>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 flex-1 border-dashed bg-white text-[10px]"
+                          onClick={() => calcImageInputRef.current?.click()}
+                        >
+                          <Upload className="w-3 h-3 mr-1" /> {calcImageUrl ? 'CAMBIAR' : 'CARGAR FOTO'}
+                        </Button>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          ref={calcImageInputRef} 
+                          onChange={handleCalcImageChange} 
+                        />
+                        {calcImageUrl && (
+                          <div className="relative h-9 w-9 rounded border overflow-hidden shrink-0 bg-white">
+                            <Image src={calcImageUrl} alt="Preview" fill className="object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setImageToPreview(calcImageUrl)} unoptimized />
+                            <button type="button" className="absolute top-0 right-0 bg-destructive text-white p-0.5" onClick={() => setCalcImageUrl('')}><X className="w-2 h-2" /></button>
+                          </div>
+                        )}
+                      </div>
+                      {!calcImageUrl && (
+                        <div className="h-[60px] bg-white border rounded-lg border-dashed flex flex-col items-center justify-center opacity-40">
+                          <LucideImage className="w-5 h-5 mb-1" />
+                          <span className="text-[8px] font-bold">SIN IMAGEN</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1019,7 +1180,7 @@ export default function QuotationsPage() {
                       <p>Equivale a: <span className="font-bold text-accent">${(parseFloat(calcUsdPrice) * parseFloat(calcTrm)).toLocaleString('en-US', { minimumFractionDigits: 2 })} COP</span> (Base)</p>
                       <p>+ Legalización: <span className="font-bold text-foreground">${(parseFloat(calcUsdPrice) * parseFloat(calcTrm) * (parseFloat(calcLegalPerc) || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} COP</span></p>
                       <p>+ Nacionalización: <span className="font-bold text-foreground">${(parseFloat(calcUsdPrice) * parseFloat(calcTrm) * (parseFloat(calcNationalPerc) || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} COP</span></p>
-                      <p>+ Transporte: <span className="font-bold text-foreground">${(parseFloat(calcUsdPrice) * parseFloat(calcTrm) * (parseFloat(calcTransportPerc) || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} COP</span></p>
+                      <p>+ Transporte: <span className="font-bold text-foreground">${(parseFloat(calcUsdPrice) * parseFloat(calcTrm) * (parseFloat(calcNationalPerc) || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} COP</span></p>
                       <p className="col-span-2 mt-1 border-t pt-1">
                         + Ganancia Proyectada: <span className="font-bold text-green-600">${(
                           (parseFloat(calcUsdPrice) * parseFloat(calcTrm) * (1 + (parseFloat(calcLegalPerc) + parseFloat(calcNationalPerc) + parseFloat(calcTransportPerc)) / 100)) * (parseFloat(calcProfitPerc) / 100)
@@ -1056,15 +1217,13 @@ export default function QuotationsPage() {
               </div>
             </div>
             
-            <Button onClick={handleAddCalcItem} className="w-full gap-2 h-12 text-base font-bold shadow-md" variant="secondary">
-              <ListPlus className="w-5 h-5" />
-              Agregar a la simulación
-            </Button>
+            <button type="button" onClick={handleAddCalcItem} className="w-full h-12 bg-secondary text-secondary-foreground rounded-md font-bold shadow-md flex items-center justify-center gap-2 hover:bg-secondary/90"><ListPlus className="w-5 h-5" /> Agregar a la simulación</button>
 
             <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
+                    <TableHead className="w-16">Imagen</TableHead>
                     <TableHead>Producto / Specs</TableHead>
                     <TableHead className="text-right">USD</TableHead>
                     <TableHead className="text-right">Cant.</TableHead>
@@ -1078,12 +1237,24 @@ export default function QuotationsPage() {
                 <TableBody>
                   {calcItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground italic">
+                      <TableCell colSpan={9} className="text-center py-12 text-muted-foreground italic">
                         No hay ítems en la simulación. Defina costos y agregue productos arriba.
                       </TableCell>
                     </TableRow>
                   ) : calcItems.map((item, idx) => (
                     <TableRow key={idx}>
+                      <TableCell className="py-2">
+                        {item.imageUrl ? (
+                          <div className="relative h-10 w-10 rounded border overflow-hidden bg-white shadow-sm group cursor-pointer" onClick={() => setImageToPreview(item.imageUrl!)}>
+                            <Image src={item.imageUrl} alt={item.productName} fill className="object-cover group-hover:opacity-80 transition-opacity" unoptimized />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ZoomIn className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center text-muted-foreground/30"><LucideImage className="w-4 h-4" /></div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <p className="font-bold text-xs">{item.productName}</p>
                         {item.specifications && <p className="text-[9px] text-muted-foreground italic line-clamp-1">{item.specifications}</p>}
@@ -1159,7 +1330,7 @@ export default function QuotationsPage() {
       </Dialog>
 
       <Dialog open={isCreateOpen} onOpenChange={(o) => { setIsCreateOpen(o); if(!o) resetForm(); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingQuotation ? 'Editar Cotización' : 'Nueva Cotización Formal'}</DialogTitle>
             <DialogDescription>Define los productos y precios especiales para la propuesta del cliente.</DialogDescription>
@@ -1234,6 +1405,7 @@ export default function QuotationsPage() {
                         if (p) {
                           setNewItemUnit(p.mainUnit as UnitType);
                           setNewItemPrice(p.salePrice.toString());
+                          setNewItemImageUrl(p.imageUrl || '');
                         }
                       }}>
                         <SelectTrigger className="bg-white"><SelectValue placeholder="Seleccionar ítem..." /></SelectTrigger>
@@ -1255,7 +1427,10 @@ export default function QuotationsPage() {
                         value={newItemCustomName} 
                         onChange={e => {
                           setNewItemCustomName(e.target.value);
-                          if (e.target.value) setNewItemProductId(''); 
+                          if (e.target.value) {
+                            setNewItemProductId('');
+                            setNewItemImageUrl('');
+                          }
                         }}
                         className="bg-white"
                       />
@@ -1275,21 +1450,56 @@ export default function QuotationsPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                        <LucideImage className="w-3 h-3 text-primary" />
+                        Imagen del Ítem
+                      </Label>
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 w-full border-dashed bg-white text-[10px]"
+                          onClick={() => itemImageInputRef.current?.click()}
+                        >
+                          <Upload className="w-3 h-3 mr-1" /> {newItemImageUrl ? 'CAMBIAR FOTO' : 'CARGAR FOTO'}
+                        </Button>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          ref={itemImageInputRef} 
+                          onChange={handleItemImageChange} 
+                        />
+                        {newItemImageUrl && (
+                          <div className="relative h-9 w-9 rounded border overflow-hidden shrink-0 group cursor-pointer" onClick={() => setImageToPreview(newItemImageUrl)}>
+                            <Image src={newItemImageUrl} alt="Preview" fill className="object-cover group-hover:opacity-80 transition-opacity" unoptimized />
+                            <button type="button" className="absolute top-0 right-0 bg-destructive text-white p-0.5 z-10" onClick={(e) => { e.stopPropagation(); setNewItemImageUrl(''); }}><X className="w-2 h-2" /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground">Cant.</Label>
+                        <Input type="number" step="0.01" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} className="bg-white h-9" />
+                      </div>
+                      <div className="w-20 space-y-1">
+                        <Label className="text-[9px] uppercase font-bold text-muted-foreground">Unidad</Label>
+                        <Select value={newItemUnit} onValueChange={(v: UnitType) => setNewItemUnit(v)}>
+                          <SelectTrigger className="bg-white h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="kilos">Kg</SelectItem><SelectItem value="libras">Lb</SelectItem><SelectItem value="bultos">Bl</SelectItem><SelectItem value="unidades">Un</SelectItem></SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 space-y-1">
-                      <Label className="text-[9px] uppercase font-bold text-muted-foreground">Cant.</Label>
-                      <Input type="number" step="0.01" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} className="bg-white" />
-                    </div>
-                    <div className="w-24 space-y-1">
-                      <Label className="text-[9px] uppercase font-bold text-muted-foreground">Unidad</Label>
-                      <Select value={newItemUnit} onValueChange={(v: UnitType) => setNewItemUnit(v)}>
-                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="kilos">Kg</SelectItem><SelectItem value="libras">Lb</SelectItem><SelectItem value="bultos">Bl</SelectItem><SelectItem value="unidades">Un</SelectItem></SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-1 space-y-1">
                       <Label className="text-[9px] uppercase font-bold text-primary">Precio Cotizado ($)</Label>
-                      <Input type="number" step="0.01" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="0.00" className="bg-white font-bold" />
+                      <Input type="number" step="0.01" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="0.00" className="bg-white font-bold h-10" />
                     </div>
                     <button type="button" onClick={handleAddItem} className="shrink-0 h-10 w-10 flex items-center justify-center bg-primary text-white rounded-md hover:bg-primary/90 transition-transform active:scale-95"><ListPlus className="w-4 h-4" /></button>
                   </div>
@@ -1300,6 +1510,16 @@ export default function QuotationsPage() {
                     <TableBody>
                       {formItems.map((item, idx) => (
                         <TableRow key={idx} className="h-auto">
+                          <TableCell className="py-2 w-12">
+                            {item.imageUrl && (
+                              <div className="relative h-10 w-10 rounded border overflow-hidden bg-white cursor-pointer group" onClick={() => setImageToPreview(item.imageUrl!)}>
+                                <Image src={item.imageUrl} alt={item.productName} fill className="object-cover group-hover:opacity-80 transition-opacity" unoptimized />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 group-hover:opacity-100">
+                                  <ZoomIn className="w-3 h-3 text-white" />
+                                </div>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="py-2 text-xs">
                             <div className="font-bold flex items-center gap-1.5">
                               {item.productName}
@@ -1322,7 +1542,7 @@ export default function QuotationsPage() {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {formItems.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4 text-[10px] text-muted-foreground italic">Agregue productos a la cotización.</TableCell></TableRow>}
+                      {formItems.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-[10px] text-muted-foreground italic">Agregue productos a la cotización.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 </div>
@@ -1334,7 +1554,7 @@ export default function QuotationsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-primary" /> Fecha y Notas
+                  <CalendarDays className="w-4 h-4 text-primary" /> Fecha y Estado
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1346,6 +1566,22 @@ export default function QuotationsPage() {
                     <Input type="date" value={formData.estimatedDeliveryDate} onChange={e => setFormData({...formData, estimatedDeliveryDate: e.target.value})} />
                   </div>
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>¿Propuesta Aprobada?</Label>
+                    <Select value={formData.approved} onValueChange={(v: 'si' | 'no') => setFormData({...formData, approved: v})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="si">Sí, Aprobada</SelectItem>
+                        <SelectItem value="no">No, Pendiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Observaciones / Validez</Label>
                   <textarea 
@@ -1360,11 +1596,6 @@ export default function QuotationsPage() {
               <div className="bg-primary/5 p-6 rounded-2xl flex flex-col justify-center border border-primary/10">
                 <p className="text-sm font-black uppercase text-muted-foreground mb-2">VALOR TOTAL DE LA PROPUESTA:</p>
                 <p className="text-5xl font-black text-primary">${currentTotalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <div className="mt-6 p-3 bg-white/50 rounded-lg border border-dashed border-primary/20">
-                  <p className="text-[10px] text-primary font-bold italic leading-tight">
-                    * El valor total es informativo y no afecta el inventario hasta que se procese como una venta real.
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -1375,401 +1606,6 @@ export default function QuotationsPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={!!managingCollectionsFor} onOpenChange={(o) => !o && setManagingCollectionsFor(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-green-600" />
-              Gestión de Abonos: {managingCollectionsFor?.customerName}
-            </DialogTitle>
-            <DialogDescription>Registra pagos parciales sobre el presupuesto cotizado.</DialogDescription>
-          </DialogHeader>
-          
-          {managingCollectionsFor && (
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 bg-muted/20 border-none shadow-none">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mb-1">Valor Cotizado</p>
-                  <p className="text-lg font-bold">${managingCollectionsFor.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-                <Card className="p-4 bg-green-50 border-none shadow-none">
-                  <p className="text-[10px] uppercase font-black text-green-600 mb-1">Abonado</p>
-                  <p className="text-lg font-bold text-green-700">${getTotalCollected(managingCollectionsFor.id).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-                <Card className="p-4 bg-destructive/5 border-none shadow-none">
-                  <p className="text-[10px] uppercase font-black text-destructive mb-1">Saldo Restante</p>
-                  <p className="text-lg font-bold text-destructive">${(managingCollectionsFor.totalValue - getTotalCollected(managingCollectionsFor.id)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold uppercase text-muted-foreground px-1">
-                  <span>Progreso de Recaudo</span>
-                  <span>{((getTotalCollected(managingCollectionsFor.id) / managingCollectionsFor.totalValue) * 100).toFixed(1)}%</span>
-                </div>
-                <Progress value={(getTotalCollected(managingCollectionsFor.id) / managingCollectionsFor.totalValue) * 100} className="h-2" />
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    {editingCollectionId ? <Pencil className="w-4 h-4 text-primary" /> : <Plus className="w-4 h-4 text-primary" />}
-                    {editingCollectionId ? 'Editar Abono' : 'Nuevo Abono'}
-                  </h4>
-                  <form onSubmit={handleAddCollection} className="space-y-4 bg-muted/10 p-4 rounded-xl border border-border">
-                    <div className="space-y-2">
-                      <Label>Fecha</Label>
-                      <Input type="date" value={newCollectionDate} onChange={e => setNewCollectionDate(e.target.value)} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Monto ($) *</Label>
-                      <Input type="number" step="0.01" value={newCollectionAmount} onChange={e => setNewCollectionAmount(e.target.value)} placeholder="0.00" required className="font-bold text-green-700" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Notas</Label>
-                      <Input value={newCollectionNotes} onChange={e => setNewCollectionNotes(e.target.value)} placeholder="Ej: Reserva de productos" />
-                    </div>
-                    <div className="flex gap-2">
-                      {editingCollectionId && (
-                        <Button type="button" variant="outline" className="flex-1" onClick={cancelEditCollection}>Cancelar</Button>
-                      )}
-                      <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700">
-                        {editingCollectionId ? 'Actualizar' : 'Guardar Abono'}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    <History className="w-4 h-4 text-blue-500" /> Historial
-                  </h4>
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
-                    {getCollectionsForQuotation(managingCollectionsFor.id).length === 0 ? (
-                      <p className="text-xs text-center py-10 text-muted-foreground italic">No hay abonos registrados.</p>
-                    ) : getCollectionsForQuotation(managingCollectionsFor.id).map(coll => {
-                      const isSending = isSendingReceipt === coll.id;
-                      return (
-                        <div key={coll.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-border group hover:border-primary/30 transition-colors">
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground">{new Date(coll.date).toLocaleDateString()}</p>
-                            <p className="text-sm font-bold text-primary">${coll.amount.toLocaleString()}</p>
-                            {coll.notes && <p className="text-[9px] text-muted-foreground italic">{coll.notes}</p>}
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              type="button"
-                              className={cn("h-7 w-7 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors", isSending && "animate-pulse")}
-                              onClick={() => handleSendReceiptEmail(managingCollectionsFor, coll)}
-                              disabled={isSending}
-                              title="Enviar recibo por correo"
-                            >
-                              {isSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileCheck className="w-3.5 h-3.5" />}
-                            </button>
-                            {isAdmin && (
-                              <>
-                                <button 
-                                  type="button"
-                                  className="h-7 w-7 flex items-center justify-center text-primary hover:bg-primary/10 rounded-full transition-colors"
-                                  onClick={() => handleEditCollection(coll)}
-                                  title="Editar abono"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button 
-                                  type="button"
-                                  className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive rounded-full transition-colors"
-                                  onClick={() => deleteQuotationCollection(coll.id)}
-                                  title="Eliminar abono"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="border-t pt-4">
-            <Button variant="outline" onClick={() => setManagingCollectionsFor(null)} className="w-full">Cerrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!managingImportFor} onOpenChange={(o) => !o && setManagingImportFor(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-orange-600" />
-              Logística de Importación: {managingImportFor?.customerName}
-            </DialogTitle>
-            <DialogDescription>Registra el avance y novedades del proceso de importación de la mercancía.</DialogDescription>
-          </DialogHeader>
-          
-          {managingImportFor && (
-            <div className="space-y-6 py-4">
-              <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-orange-100 p-2.5 rounded-lg text-orange-600">
-                    <Package className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-orange-700 uppercase leading-none">Pedido de Importación</p>
-                    <p className="text-lg font-bold text-orange-900 mt-1">Cotización #{managingImportFor.id.substring(0,8).toUpperCase()}</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="border-orange-200 text-orange-700 bg-white">En Proceso</Badge>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    <Plus className="w-4 h-4 text-primary" /> Registrar Nuevo Evento
-                  </h4>
-                  <form onSubmit={handleAddImportTracking} className="space-y-4 bg-muted/10 p-4 rounded-xl border border-border">
-                    <div className="space-y-2">
-                      <Label>Fecha del Seguimiento</Label>
-                      <Input type="date" value={newImportDate} onChange={e => setNewImportDate(e.target.value)} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Estado / Hito Logístico *</Label>
-                      <Input value={newImportStatus} onChange={e => setNewImportStatus(e.target.value)} placeholder="Ej: Mercancía en Puerto, Aduana..." required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Detalles Adicionales</Label>
-                      <textarea 
-                        className="w-full min-h-[80px] p-3 rounded-md border border-input bg-background text-sm"
-                        placeholder="Novedades, retrasos o confirmaciones..."
-                        value={newImportNotes}
-                        onChange={e => setNewImportNotes(e.target.value)}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700">Guardar Seguimiento</Button>
-                  </form>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    <History className="w-4 h-4 text-blue-500" /> Historial Logístico
-                  </h4>
-                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 relative">
-                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted-foreground/20 z-0" />
-                    {getImportTrackingsForQuotation(managingImportFor.id).length === 0 ? (
-                      <p className="text-xs text-center py-10 text-muted-foreground italic">No hay registros de seguimiento.</p>
-                    ) : getImportTrackingsForQuotation(managingImportFor.id).map((track, idx) => (
-                      <div key={track.id} className="relative z-10 pl-8 pb-2">
-                        <div className="absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-white shadow-sm" />
-                        <div className="bg-white p-3 rounded-lg border border-border shadow-sm group hover:border-orange-200 transition-colors">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-[10px] font-black text-muted-foreground uppercase">{new Date(track.date).toLocaleDateString()}</span>
-                            {isAdmin && (
-                              <button 
-                                className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
-                                onClick={() => deleteQuotationImportTracking(track.id)}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                          <p className="text-xs font-bold text-primary">{track.status}</p>
-                          {track.notes && <p className="text-[11px] text-muted-foreground mt-1 italic leading-relaxed">{track.notes}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="border-t pt-4">
-            <Button variant="outline" onClick={() => setManagingImportFor(null)} className="w-full">Cerrar Bitácora</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!viewingQuotation} onOpenChange={(o) => !o && setViewingQuotation(null)}>
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" /> Detalle Completo de Cotización</DialogTitle>
-          </DialogHeader>
-          {viewingQuotation && (
-            <div className="space-y-8 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-muted/20 p-6 rounded-2xl border border-border">
-                <div className="space-y-3">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Información del Cliente</p>
-                  <div>
-                    <h3 className="text-xl font-black text-primary">{viewingQuotation.customerName}</h3>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm">
-                      <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-muted-foreground" /> {viewingQuotation.customerPhone}</p>
-                      <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-muted-foreground" /> {viewingQuotation.customerEmail || 'N/A'}</p>
-                      <p className="flex items-center gap-1.5"><Fingerprint className="w-3.5 h-3.5 text-muted-foreground" /> {viewingQuotation.customerIdentification || 'Sin ID'}</p>
-                    </div>
-                    {viewingQuotation.customerAddress && (
-                      <p className="flex items-center gap-1.5 text-sm mt-2"><MapPin className="w-3.5 h-3.5 text-muted-foreground" /> {viewingQuotation.customerAddress}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right space-y-2">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Estado Documento</p>
-                  <p className="text-sm font-bold">Fecha Emisión: {new Date(viewingQuotation.date).toLocaleDateString()}</p>
-                  {viewingQuotation.estimatedDeliveryDate && (
-                    <p className="text-sm font-black text-accent">Entrega Est.: {new Date(viewingQuotation.estimatedDeliveryDate + 'T00:00:00').toLocaleDateString()}</p>
-                  )}
-                  <p className="text-[10px] font-mono text-muted-foreground mt-2">COT-#{viewingQuotation.id.substring(0,8).toUpperCase()}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-[10px] uppercase font-black text-muted-foreground tracking-widest px-1">Productos y Precios Cotizados</h4>
-                <div className="border rounded-xl overflow-hidden shadow-sm">
-                  <Table>
-                    <TableHeader className="bg-muted/50"><TableRow><TableHead>Descripción del Producto / Especificaciones</TableHead><TableHead className="text-right">Cant.</TableHead><TableHead className="text-right">Precio Pactado</TableHead><TableHead className="text-right">Sub-Total</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {viewingQuotation.items?.map((item, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="py-2 text-xs">
-                            <div className="font-bold flex items-center gap-1.5">
-                              {item.productName}
-                              {item.productId.startsWith('manual-') && <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-accent/5 text-accent border-accent/20">Manual</Badge>}
-                            </div>
-                            {item.specifications && <div className="text-[10px] text-muted-foreground italic mt-0.5 whitespace-pre-wrap">{item.specifications}</div>}
-                          </TableCell>
-                          <TableCell className="py-2 text-right text-xs">{item.quantity} {item.unit}</TableCell>
-                          <TableCell className="py-2 text-right text-xs font-medium">${item.price.toLocaleString()}</TableCell>
-                          <TableCell className="py-2 text-right font-black text-xs text-primary">${item.total.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 bg-primary/5 border-primary/10 flex flex-col justify-center">
-                  <p className="text-[9px] uppercase font-black text-muted-foreground mb-1">Valor Total Propuesta</p>
-                  <p className="text-2xl font-black text-primary">${viewingQuotation.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-                <Card className="p-4 bg-green-50 border-green-100 flex flex-col justify-center">
-                  <p className="text-[9px] uppercase font-black text-green-600 mb-1">Abonos Realizados</p>
-                  <p className="text-2xl font-black text-green-700">${getTotalCollected(viewingQuotation.id).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-                <Card className="p-4 bg-destructive/5 border-destructive/10 flex flex-col justify-center">
-                  <p className="text-[9px] uppercase font-black text-destructive mb-1">Saldo Pendiente</p>
-                  <p className="text-2xl font-black text-destructive">${(viewingQuotation.totalValue - getTotalCollected(viewingQuotation.id)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                    <History className="w-4 h-4 text-green-600" /> Historial de Abonos
-                  </h4>
-                  <div className="border rounded-2xl p-4 bg-white shadow-sm space-y-3 min-h-[150px] max-h-[300px] overflow-y-auto">
-                    {getCollectionsForQuotation(viewingQuotation.id).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50 py-8">
-                        <Coins className="w-8 h-8 mb-2" />
-                        <p className="text-xs italic">No hay abonos registrados.</p>
-                      </div>
-                    ) : getCollectionsForQuotation(viewingQuotation.id).map((coll, i) => (
-                      <div key={i} className="flex justify-between items-center text-xs border-b border-muted pb-2 last:border-0 last:pb-0">
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-primary">{new Date(coll.date).toLocaleDateString()}</p>
-                          {coll.notes && <p className="text-[10px] text-muted-foreground italic line-clamp-1">{coll.notes}</p>}
-                        </div>
-                        <p className="font-black text-green-700 text-sm">${coll.amount.toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-orange-600" /> Bitácora de Importación
-                  </h4>
-                  <div className="border rounded-2xl p-4 bg-white shadow-sm space-y-4 min-h-[150px] max-h-[300px] overflow-y-auto relative">
-                    {getImportTrackingsForQuotation(viewingQuotation.id).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50 py-8">
-                        <Truck className="w-8 h-8 mb-2" />
-                        <p className="text-xs italic">No hay seguimientos registrados.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 relative">
-                        <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-orange-100" />
-                        {getImportTrackingsForQuotation(viewingQuotation.id).map((track, i) => (
-                          <div key={i} className="relative pl-8">
-                            <div className="absolute left-1 top-1 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-white shadow-sm" />
-                            <div className="space-y-0.5">
-                              <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black text-orange-600 uppercase">{new Date(track.date).toLocaleDateString()}</p>
-                                <Badge variant="outline" className="text-[8px] h-4 py-0 border-orange-200 text-orange-700">Actualización</Badge>
-                              </div>
-                              <p className="text-xs font-bold text-foreground leading-tight">{track.status}</p>
-                              {track.notes && <p className="text-[10px] text-muted-foreground italic leading-relaxed">{track.notes}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {viewingQuotation.notes && (
-                <div className="space-y-2 border-t pt-6">
-                  <p className="text-[10px] uppercase text-muted-foreground font-black flex items-center gap-1.5">
-                    <FileText className="w-3 h-3" /> Observaciones y Validez
-                  </p>
-                  <div className="text-xs text-muted-foreground bg-muted/20 p-4 rounded-xl border border-dashed border-border italic whitespace-pre-wrap leading-relaxed">
-                    {viewingQuotation.notes}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-3 border-t pt-6">
-            <Button variant="outline" onClick={() => setViewingQuotation(null)} className="flex-1 h-12 rounded-xl">Cerrar Detalle</Button>
-            {viewingQuotation && (
-              <Button onClick={() => handlePrintQuotation(viewingQuotation)} className="flex-1 h-12 rounded-xl gap-2 shadow-md">
-                <Printer className="w-4 h-4" /> Imprimir Cotización
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!quotationToDelete} onOpenChange={(open) => !open && setQuotationToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-              ¿Confirmar Eliminación?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar la cotización de <strong>{quotationToDelete?.customerName}</strong>? 
-              Esta acción borrará también todos los abonos y seguimientos logísticos asociados y no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDelete}
-              className="bg-destructive hover:bg-destructive/90 text-white"
-            >
-              Eliminar Definitivamente
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </main>
   );
 }
