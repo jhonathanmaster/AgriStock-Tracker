@@ -33,6 +33,9 @@ import type {
   Quotation,
   QuotationCollection,
   QuotationImportTracking,
+  Truck,
+  TransportService,
+  TransportCollection,
 } from './types';
 
 const EMPTY: never[] = [];
@@ -103,6 +106,7 @@ export function useAgriStock() {
       logoUrl: configData?.logoUrl || '',
       iconUrl: configData?.iconUrl || '',
       signatureUrl: configData?.signatureUrl || '',
+      contractTemplateUrl: configData?.contractTemplateUrl || '',
     }),
     [configData],
   );
@@ -196,6 +200,9 @@ export function useAgriStock() {
     animalTypes: (d.animalTypes ?? EMPTY) as AnimalType[],
     categories: (d.categories ?? EMPTY) as Category[],
     suppliers: (d.suppliers ?? EMPTY) as Supplier[],
+    trucks: (d.trucks ?? EMPTY) as Truck[],
+    transportServices: (d.transportServices ?? EMPTY) as TransportService[],
+    transportCollections: (d.transportCollections ?? EMPTY) as TransportCollection[],
     profile,
     dailyIncome,
     totalHistoricalIncome,
@@ -374,5 +381,17 @@ export function useAgriStock() {
         );
       });
     },
+
+    // ---- Logística ------------------------------------------------------------------------
+    addTruck: (truck: Omit<Truck, 'id'>) => create('trucks', truck),
+    updateTruck: (id: string, truck: Partial<Truck>) => update('trucks', id, truck),
+    deleteTruck: (id: string) => remove('trucks', id),
+    addTransportService: (service: Omit<TransportService, 'id' | 'createdAt' | 'totalPaid' | 'paymentStatus'> & Partial<Pick<TransportService, 'totalPaid' | 'paymentStatus'>>) =>
+      create('transportServices', { ...service, createdAt: new Date().toISOString() }),
+    updateTransportService: (id: string, service: Partial<TransportService>) => update('transportServices', id, service),
+    deleteTransportService: (id: string) => remove('transportServices', id, ['transportCollections']),
+    /** The server recalculates the service's paid total and payment status. */
+    addTransportCollection: (data: Omit<TransportCollection, 'id'>) => create('transportCollections', data, ['transportServices']),
+    deleteTransportCollection: (id: string) => remove('transportCollections', id, ['transportServices']),
   };
 }

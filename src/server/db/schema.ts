@@ -36,6 +36,9 @@ export const ROLES = ['admin', 'operario'] as const;
 export const MOVEMENT_TYPES = ['entrada', 'salida', 'venta'] as const;
 export const ORDER_STATUSES = ['pending', 'delivered', 'cancelled', 'paid'] as const;
 export const CREDIT_STATUSES = ['active', 'paid', 'cancelled'] as const;
+export const TRUCK_STATUSES = ['available', 'in_service', 'maintenance'] as const;
+export const TRANSPORT_STATUSES = ['pending', 'in_progress', 'finished', 'cancelled'] as const;
+export const TRANSPORT_PAYMENT_STATUSES = ['pending', 'partial', 'paid'] as const;
 
 const inList = (column: string, values: readonly string[]) =>
   sql.raw(`${column} in (${values.map((v) => `'${v}'`).join(', ')})`);
@@ -183,6 +186,8 @@ export const appConfig = pgTable('app_config', {
   logoUrl: text('logo_url'),
   iconUrl: text('icon_url'),
   signatureUrl: text('signature_url'),
+  /** Contract template (data URL or link) attached to contract emails. */
+  contractTemplateUrl: text('contract_template_url'),
   updatedAt: updatedAt(),
 });
 
@@ -392,6 +397,8 @@ export const quotations = pgTable(
     items: jsonb('items').notNull().default(sql`'[]'::jsonb`),
     totalValue: money('total_value').notNull().default(0),
     notes: text('notes'),
+    /** Customer's answer: 'si' | 'no'; null while undecided. */
+    approved: text('approved'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -488,6 +495,82 @@ export const expenses = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index('expenses_date_idx').on(t.date)],
+);
+
+// ---- Logistics --------------------------------------------------------------------------
+
+export const trucks = pgTable(
+  'trucks',
+  {
+    id: id(),
+    plate: text('plate').notNull(),
+    model: text('model').notNull().default(''),
+    brand: text('brand').notNull().default(''),
+    capacityTons: numeric('capacity_tons', { mode: 'number' }).notNull().default(0),
+    fuelType: text('fuel_type').notNull().default(''),
+    averageKmPerGallon: numeric('average_km_per_gallon', { mode: 'number' }).notNull().default(0),
+    status: text('status').notNull().default('available'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('trucks_plate_idx').on(t.plate), check('trucks_status_check', inList('status', TRUCK_STATUSES))],
+);
+
+export const transportServices = pgTable(
+  'transport_services',
+  {
+    id: id(),
+    /** Not a foreign key: a service keeps its history if the truck is deleted. */
+    truckId: text('truck_id').notNull(),
+    /** Not a foreign key: the UI may reference a customer saved in the same moment, or one deleted later. */
+    customerId: text('customer_id'),
+    customerName: text('customer_name').notNull(),
+    customerPhone: text('customer_phone').notNull().default(''),
+    customerEmail: text('customer_email'),
+    customerAddress: text('customer_address'),
+    customerIdentification: text('customer_identification'),
+    origin: text('origin').notNull(),
+    destination: text('destination').notNull(),
+    distanceKm: numeric('distance_km', { mode: 'number' }).notNull().default(0),
+    estimatedTime: text('estimated_time').notNull().default(''),
+    serviceDate: text('service_date').notNull(),
+    status: text('status').notNull().default('pending'),
+    /** Derived from transport_collections by the server. */
+    paymentStatus: text('payment_status').notNull().default('pending'),
+    totalFreightPrice: money('total_freight_price').notNull().default(0),
+    /** Derived from transport_collections by the server. */
+    totalPaid: money('total_paid').notNull().default(0),
+    driverName: text('driver_name').notNull().default(''),
+    driverId: text('driver_id').notNull().default(''),
+    driverPhone: text('driver_phone').notNull().default(''),
+    expenses: jsonb('expenses').notNull().default(sql`'[]'::jsonb`),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('transport_services_service_date_idx').on(t.serviceDate),
+    index('transport_services_truck_id_idx').on(t.truckId),
+    check('transport_services_status_check', inList('status', TRANSPORT_STATUSES)),
+    check('transport_services_payment_status_check', inList('payment_status', TRANSPORT_PAYMENT_STATUSES)),
+    check('transport_services_freight_non_negative', sql`${t.totalFreightPrice} >= 0`),
+  ],
+);
+
+export const transportCollections = pgTable(
+  'transport_collections',
+  {
+    id: id(),
+    serviceId: text('service_id')
+      .notNull()
+      .references(() => transportServices.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(),
+    amount: money('amount').notNull(),
+    method: text('method').notNull().default(''),
+    notes: text('notes'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('transport_collections_service_id_idx').on(t.serviceId), index('transport_collections_date_idx').on(t.date)],
 );
 
 // ---- Sync and migration bookkeeping ------------------------------------------------------

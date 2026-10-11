@@ -25,6 +25,9 @@ export const RESOURCES = [
   'animalTypes',
   'categories',
   'suppliers',
+  'trucks',
+  'transportServices',
+  'transportCollections',
   'config',
 ] as const;
 export type Resource = (typeof RESOURCES)[number];

@@ -19,8 +19,11 @@ import {
   unit,
   orderStatus,
   creditStatus,
+  truckStatus,
+  transportStatus,
   items,
   payments,
+  tripExpenses,
 } from './validation';
 import type { Resource } from './versions';
 
@@ -155,6 +158,7 @@ export const RESOURCE_DEFS: Partial<Record<Resource, ResourceDef>> = {
       items: items().default([]),
       totalValue: numDefault(0),
       notes: text(),
+      approved: z.enum(['si', 'no']).nullable().optional(),
     }),
     orderBy: [desc(t.quotations.date)],
   },
@@ -275,6 +279,58 @@ export const RESOURCE_DEFS: Partial<Record<Resource, ResourceDef>> = {
     }),
     orderBy: [byName(t.suppliers.name)],
   },
+  trucks: {
+    table: t.trucks,
+    read: 'enabled',
+    write: 'admin',
+    create: z.object({
+      plate: name(40).transform((v) => v.toUpperCase()),
+      model: textReq(200).default(''),
+      brand: textReq(200).default(''),
+      capacityTons: numDefault(0).pipe(z.number().min(0)),
+      fuelType: textReq(100).default(''),
+      averageKmPerGallon: numDefault(0).pipe(z.number().min(0)),
+      status: truckStatus().default('available'),
+    }),
+    orderBy: [byName(t.trucks.plate)],
+  },
+  transportServices: {
+    table: t.transportServices,
+    read: 'enabled',
+    write: 'enabled',
+    create: z.object({
+      truckId: z.string().min(1, 'Selecciona un camión').max(200),
+      ...customerSnapshot,
+      customerEmail: text(500),
+      origin: name(1000),
+      destination: name(1000),
+      distanceKm: numDefault(0).pipe(z.number().min(0)),
+      estimatedTime: textReq(200).default(''),
+      serviceDate: dateTextReq().default(nowIso),
+      status: transportStatus().default('pending'),
+      totalFreightPrice: numDefault(0).pipe(z.number().min(0, 'El flete no puede ser negativo')),
+      driverName: textReq(500).default(''),
+      driverId: textReq(100).default(''),
+      driverPhone: textReq(100).default(''),
+      expenses: tripExpenses().default([]),
+      notes: text(),
+      createdAt: dateTextReq().default(nowIso),
+    }),
+    orderBy: [desc(t.transportServices.serviceDate)],
+  },
+  transportCollections: {
+    table: t.transportCollections,
+    read: 'enabled',
+    write: 'enabled',
+    create: z.object({
+      serviceId: z.string().min(1).max(200),
+      date: dateTextReq().default(nowIso),
+      amount: numReq().pipe(z.number().positive('El abono debe ser mayor que cero')),
+      method: textReq(100).default(''),
+      notes: text(),
+    }),
+    orderBy: [desc(t.transportCollections.date)],
+  },
 };
 
 /** Which data sets a generic write touches (besides itself). */
@@ -283,4 +339,6 @@ export const ALSO_TOUCHES: Partial<Record<Resource, Resource[]>> = {
   suppliers: ['products', 'purchaseOrders', 'expenses'],
   quotations: ['quotationCollections', 'quotationImportTrackings'],
   credits: ['creditCollections'],
+  transportServices: ['transportCollections'],
+  transportCollections: ['transportServices'],
 };

@@ -32,6 +32,9 @@ export type Resource =
   | 'animalTypes'
   | 'categories'
   | 'suppliers'
+  | 'trucks'
+  | 'transportServices'
+  | 'transportCollections'
   | 'config';
 
 export interface SessionInfo {

@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { UNITS, MOVEMENT_TYPES, ORDER_STATUSES, CREDIT_STATUSES } from './db/schema';
+import { UNITS, MOVEMENT_TYPES, ORDER_STATUSES, CREDIT_STATUSES, TRUCK_STATUSES, TRANSPORT_STATUSES } from './db/schema';
 
 /**
  * Field helpers. The UI sends values from forms: empty strings, numbers parsed with
@@ -40,6 +40,8 @@ export const unit = () => z.enum(UNITS);
 export const movementType = () => z.enum(MOVEMENT_TYPES);
 export const orderStatus = () => z.enum(ORDER_STATUSES);
 export const creditStatus = () => z.enum(CREDIT_STATUSES);
+export const truckStatus = () => z.enum(TRUCK_STATUSES);
+export const transportStatus = () => z.enum(TRANSPORT_STATUSES);
 
 // Line items and payments are stored as JSON. Validation is lenient on purpose: documents
 // imported from Firestore may have missing or odd fields, and editing them must still work.
@@ -68,5 +70,16 @@ const payment = z
   })
   .passthrough();
 export const payments = () => z.array(payment).max(1000);
+
+const tripExpense = z
+  .object({
+    id: looseText(200),
+    type: looseText(40),
+    amount: numDefault(0),
+    date: looseText(40),
+    notes: looseText(MAX_TEXT),
+  })
+  .passthrough();
+export const tripExpenses = () => z.array(tripExpense).max(1000);
 
 export { z };

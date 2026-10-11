@@ -19,6 +19,7 @@ const schema = z.object({
   logoUrl: image(),
   iconUrl: image(),
   signatureUrl: image(),
+  contractTemplateUrl: image(),
 });
 
 /** Merge settings into the single config row (like setDoc(..., { merge: true })). */

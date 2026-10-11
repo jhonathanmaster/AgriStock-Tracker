@@ -104,6 +104,7 @@ const KNOWN = [
   'users', 'invitations', 'suppliers', 'customers', 'products', 'inventoryMovements', 'inventoryAudits', 'purchaseOrders',
   'purchaseOrderStatuses', 'animalTypes', 'categories', 'expenseCategories', 'unitConversions', 'expenses', 'orders',
   'quotations', 'quotationCollections', 'quotationImportTrackings', 'credits', 'creditCollections', 'config',
+  'trucks', 'transportServices', 'transportCollections',
 ];
 const unknown = Object.keys(backup.collections).filter((c) => !KNOWN.includes(c));
 
@@ -287,7 +288,12 @@ try {
       logo_url: str(d.logoUrl, 8_000_000),
       icon_url: str(d.iconUrl, 8_000_000),
       signature_url: str(d.signatureUrl, 8_000_000),
+      contract_template_url: str(d.contractTemplateUrl, 8_000_000),
     });
+    // Rows imported before this field existed: fill it in without touching later edits.
+    if (d.contractTemplateUrl) {
+      await client.query(`update app_config set contract_template_url = $1 where id = 'inventory' and contract_template_url is null`, [str(d.contractTemplateUrl, 8_000_000)]);
+    }
   }
 
   // ---- Suppliers & customers ----
@@ -533,7 +539,11 @@ try {
       customer_id: str(d.customerId, 200) || null, customer_name: str(d.customerName, 500) || 'Cliente', customer_phone: str(d.customerPhone, 100) || '',
       customer_email: str(d.customerEmail, 500) || '', customer_address: str(d.customerAddress, 1000), customer_identification: str(d.customerIdentification, 100),
       items: jsonArray(d.items), total_value: num(d.totalValue) ?? 0, notes: str(d.notes),
+      approved: ['si', 'no'].includes(d.approved) ? d.approved : null,
     });
+    if (['si', 'no'].includes(d.approved)) {
+      await client.query('update quotations set approved = $1 where id = $2 and approved is null', [d.approved, d.__id]);
+    }
   }
   const quotationIds = await existingIds('quotations');
   for (const [col, table] of [['quotationCollections', 'quotation_collections'], ['quotationImportTrackings', 'quotation_import_trackings']]) {
@@ -581,6 +591,74 @@ try {
     });
   }
 
+  // ---- Logistics: trucks, transport services (+ their payments) ----
+  const TRUCK_STATUSES = ['available', 'in_service', 'maintenance'];
+  for (const d of docsOf('trucks')) {
+    const plate = str(d.plate, 40)?.trim().toUpperCase();
+    if (!plate) {
+      note('trucks', 'omitidos', `${d.__id}: sin placa`);
+      continue;
+    }
+    const adj = [];
+    let status = d.status;
+    if (!TRUCK_STATUSES.includes(status)) {
+      adj.push(`estado "${status ?? ''}" → available`);
+      status = 'available';
+    }
+    await insertRow('trucks', 'trucks', d.__id, {
+      id: d.__id, plate, model: str(d.model, 200) || '', brand: str(d.brand, 200) || '',
+      capacity_tons: Math.max(0, num(d.capacityTons) ?? 0), fuel_type: str(d.fuelType, 100) || '',
+      average_km_per_gallon: Math.max(0, num(d.averageKmPerGallon) ?? 0), status,
+    }, adj);
+  }
+  const TRANSPORT_STATUSES = ['pending', 'in_progress', 'finished', 'cancelled'];
+  for (const d of docsOf('transportServices')) {
+    const adj = [];
+    let status = d.status;
+    if (!TRANSPORT_STATUSES.includes(status)) {
+      adj.push(`estado "${status ?? ''}" → pending`);
+      status = 'pending';
+    }
+    const origin = str(d.origin, 1000)?.trim();
+    const destination = str(d.destination, 1000)?.trim();
+    if (!origin || !destination) adj.push('origen o destino vacío');
+    // Paid total and payment status are recalculated below from the payments (or kept from Firebase if it had none).
+    const freight = Math.max(0, num(d.totalFreightPrice) ?? 0);
+    const paid = Math.max(0, num(d.totalPaid) ?? 0);
+    await insertRow('transportServices', 'transport_services', d.__id, {
+      id: d.__id, truck_id: str(d.truckId, 200) || '', customer_id: str(d.customerId, 200) || null,
+      customer_name: str(d.customerName, 500) || 'Cliente', customer_phone: str(d.customerPhone, 100) || '',
+      customer_email: str(d.customerEmail, 500), customer_address: str(d.customerAddress, 1000), customer_identification: str(d.customerIdentification, 100),
+      origin: origin || '(sin origen)', destination: destination || '(sin destino)', distance_km: Math.max(0, num(d.distanceKm) ?? 0),
+      estimated_time: str(d.estimatedTime, 200) || '', service_date: dateStr(d.serviceDate) || dateStr(d.createdAt) || exportedAt, status,
+      payment_status: paid <= 0 ? 'pending' : paid >= freight ? 'paid' : 'partial', total_freight_price: freight, total_paid: paid,
+      driver_name: str(d.driverName, 500) || '', driver_id: str(d.driverId, 100) || '', driver_phone: str(d.driverPhone, 100) || '',
+      expenses: jsonArray(d.expenses), notes: str(d.notes), created_at: dateStr(d.createdAt) || exportedAt,
+    }, adj);
+  }
+  const serviceIds = await existingIds('transport_services');
+  const servicesWithPayments = new Set();
+  for (const d of docsOf('transportCollections')) {
+    const amount = num(d.amount);
+    if (!serviceIds.has(d.serviceId) || amount === null) {
+      note('transportCollections', 'omitidos', `${d.__id}: ${amount === null ? 'monto no numérico' : `el servicio ${d.serviceId} no existe`}`);
+      continue;
+    }
+    servicesWithPayments.add(d.serviceId);
+    await insertRow('transportCollections', 'transport_collections', d.__id, {
+      id: d.__id, service_id: d.serviceId, date: dateStr(d.date) || exportedAt, amount, method: str(d.method, 100) || '', notes: str(d.notes),
+    });
+  }
+  // Same rule as the app: paid total and status follow the payments.
+  for (const serviceId of servicesWithPayments) {
+    await client.query(
+      `update transport_services s set total_paid = p.paid,
+         payment_status = case when p.paid <= 0 then 'pending' when p.paid >= s.total_freight_price then 'paid' else 'partial' end
+       from (select coalesce(sum(amount), 0) as paid from transport_collections where service_id = $1) p where s.id = $1`,
+      [serviceId],
+    );
+  }
+
   // Open browsers reload everything on their next check.
   await client.query(
     `insert into data_versions (resource, version) select r, 1 from unnest($1::text[]) as r
@@ -589,6 +667,7 @@ try {
       'products', 'movements', 'purchaseOrders', 'expenses', 'orders', 'quotations', 'quotationCollections', 'quotationImportTrackings',
       'credits', 'creditCollections', 'audits', 'expenseCategories', 'purchaseOrderStatusDefinitions', 'conversions', 'users',
       'invitations', 'customers', 'animalTypes', 'categories', 'suppliers', 'config',
+      'trucks', 'transportServices', 'transportCollections',
     ]],
   );
 

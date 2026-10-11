@@ -160,6 +160,7 @@ export interface QuotationItem {
   productId: string;
   productName: string;
   specifications?: string;
+  imageUrl?: string;
   quantity: number;
   unit: UnitType;
   price: number;
@@ -179,6 +180,7 @@ export interface Quotation {
   items: QuotationItem[];
   totalValue: number;
   notes?: string;
+  approved?: 'si' | 'no';
 }
 
 export interface QuotationCollection {
@@ -304,4 +306,64 @@ export interface GlobalConfig {
   logoUrl?: string;
   iconUrl?: string;
   signatureUrl?: string;
+  contractTemplateUrl?: string;
+}
+
+// NUEVOS TIPOS PARA LOGÍSTICA
+export type TruckStatus = 'available' | 'in_service' | 'maintenance';
+export type TransportStatus = 'pending' | 'in_progress' | 'finished' | 'cancelled';
+export type TransportPaymentStatus = 'pending' | 'partial' | 'paid';
+
+export interface Truck {
+  id: string;
+  plate: string;
+  model: string;
+  brand: string;
+  capacityTons: number;
+  fuelType: string;
+  averageKmPerGallon: number;
+  status: TruckStatus;
+}
+
+export interface TripExpense {
+  id: string;
+  type: 'gasoline' | 'toll' | 'driver_pay' | 'maintenance' | 'other';
+  amount: number;
+  date: string;
+  notes?: string;
+}
+
+export interface TransportService {
+  id: string;
+  truckId: string;
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  customerIdentification?: string;
+  origin: string;
+  destination: string;
+  distanceKm: number;
+  estimatedTime: string;
+  serviceDate: string;
+  status: TransportStatus;
+  paymentStatus: TransportPaymentStatus;
+  totalFreightPrice: number;
+  totalPaid: number;
+  driverName: string;
+  driverId: string;
+  driverPhone: string;
+  expenses: TripExpense[];
+  notes?: string;
+  createdAt: string;
+}
+
+export interface TransportCollection {
+  id: string;
+  serviceId: string;
+  date: string;
+  amount: number;
+  method: string;
+  notes?: string;
 }
