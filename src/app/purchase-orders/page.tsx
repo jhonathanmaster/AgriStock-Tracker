@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Coins
+  Coins,
+  History as HistoryIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -75,10 +76,7 @@ export default function PurchaseOrdersPage() {
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [viewingOrder, setViewingOrder] = useState<PurchaseOrder | null>(null);
 
-  // Sorting State
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'requestDate', direction: 'desc' });
-
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
@@ -100,6 +98,7 @@ export default function PurchaseOrdersPage() {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
+    // Only set on client to avoid hydration mismatch
     const today = new Date().toISOString().split('T')[0];
     setFormData(prev => ({ ...prev, requestDate: prev.requestDate || today }));
   }, [user, isUserLoading, router]);
@@ -178,14 +177,20 @@ export default function PurchaseOrdersPage() {
     return list;
   }, [purchaseOrders, products, suppliers, searchTerm, startDate, endDate, sortConfig]);
 
-  // Cálculo de totales por estado para los cuadros de resumen
+  const grandTotals = useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
+      acc.totalCost += (order.totalCost || 0);
+      acc.totalQty += (order.quantity || 0);
+      return acc;
+    }, { totalCost: 0, totalQty: 0 });
+  }, [filteredOrders]);
+
   const statusTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     purchaseOrderStatusDefinitions.forEach(status => {
       totals[status.name] = 0;
     });
     
-    // Solo sumamos de los pedidos filtrados actualmente
     filteredOrders.forEach(order => {
       totals[order.status] = (totals[order.status] || 0) + (order.totalCost || 0);
     });
@@ -450,48 +455,15 @@ export default function PurchaseOrdersPage() {
                   <TableCell className="font-bold text-primary">{product?.name || 'Desconocido'}</TableCell>
                   <TableCell className="text-sm">{supplier?.name || 'Desconocido'}</TableCell>
                   <TableCell className="text-right font-medium">{order.quantity} <span className="text-[10px] text-muted-foreground">{order.unit}</span></TableCell>
-                  <TableCell className="text-right font-bold text-accent">
-                    ${(order.totalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {order.requestDate ? new Date(order.requestDate).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-'}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {order.deliveryDate ? (
-                      <div className="flex items-center gap-1 text-blue-600 font-medium">
-                        <Timer className="w-3 h-3" />
-                        {new Date(order.deliveryDate).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground italic text-[10px]">No pactada</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs font-bold text-green-600">
-                    {order.receivedDate ? (
-                      <div className="flex items-center gap-1">
-                        <CalendarCheck className="w-3 h-3" />
-                        {new Date(order.receivedDate).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
-                      </div>
-                    ) : '-'}
-                  </TableCell>
+                  <TableCell className="text-right font-bold text-accent">${(order.totalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{order.requestDate ? new Date(order.requestDate).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '-'}</TableCell>
+                  <TableCell className="text-xs">{order.deliveryDate ? (<div className="flex items-center gap-1 text-blue-600 font-medium"><Timer className="w-3 h-3" />{new Date(order.deliveryDate).toLocaleDateString('es-ES', { timeZone: 'UTC' })}</div>) : (<span className="text-muted-foreground italic text-[10px]">No pactada</span>)}</TableCell>
+                  <TableCell className="text-xs font-bold text-green-600">{order.receivedDate ? (<div className="flex items-center gap-1"><CalendarCheck className="w-3 h-3" />{new Date(order.receivedDate).toLocaleDateString('es-ES', { timeZone: 'UTC' })}</div>) : '-'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500 hover:bg-blue-50" onClick={() => setViewingOrder(order)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-primary/5" onClick={() => handleEdit(order)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      {isAdmin && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:bg-destructive/5 hover:text-destructive" onClick={() => {
-                          if (confirm('¿Seguro que deseas eliminar esta orden?')) {
-                            deletePurchaseOrder(order.id);
-                            toast({ title: "Orden Eliminada" });
-                          }
-                        }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500 hover:bg-blue-50" onClick={() => setViewingOrder(order)}><Eye className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-primary/5" onClick={() => handleEdit(order)}><Pencil className="w-4 h-4" /></Button>
+                      {isAdmin && <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:bg-destructive/5 hover:text-destructive" onClick={() => { if (confirm('¿Seguro que deseas eliminar esta orden?')) { deletePurchaseOrder(order.id); toast({ title: "Orden Eliminada" }); } }}><Trash2 className="w-4 h-4" /></Button>}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -532,7 +504,42 @@ export default function PurchaseOrdersPage() {
         </div>
       </div>
 
-      {/* CUADROS DE RESUMEN POR ESTADO ABAJO DEL LISTADO */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500">
+        <Card className="bg-primary/5 border-primary/20 shadow-sm">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              <CardDescription className="text-[10px] uppercase font-black text-primary tracking-widest">Sumatoria Total Cantidades</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-black text-primary tracking-tighter">
+                {grandTotals.totalQty.toLocaleString(undefined, { minimumFractionDigits: 1 })}
+              </div>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">Items Mixtos</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-accent/5 border-accent/20 shadow-sm">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-accent" />
+              <CardDescription className="text-[10px] uppercase font-black text-accent tracking-widest">Valor Total Ordenado</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="flex items-baseline gap-1">
+              <span className="text-[10px] font-bold text-accent opacity-50">$</span>
+              <div className="text-3xl font-black text-accent tracking-tighter">
+                {grandTotals.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
         {purchaseOrderStatusDefinitions.map(status => {
           const total = statusTotals[status.name] || 0;
@@ -551,149 +558,21 @@ export default function PurchaseOrdersPage() {
                     {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2 opacity-60">
-                  <Coins className="w-3 h-3" style={{ color: status.color }} />
-                  <p className="text-[9px] font-bold uppercase tracking-tighter">Costo Acumulado</p>
-                </div>
               </CardContent>
             </Card>
           );
         })}
       </section>
 
-      <Dialog open={!!viewingOrder} onOpenChange={(o) => !o && setViewingOrder(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-blue-500" />
-              Detalle de Orden de Compra
-            </DialogTitle>
-          </DialogHeader>
-          {viewingOrder && (
-            <div className="space-y-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase text-muted-foreground font-bold">Estado del Pedido</p>
-                  {getStatusBadge(viewingOrder.status)}
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground font-bold">ID Referencia</p>
-                  <p className="text-xs font-mono font-bold">#{viewingOrder.id.substring(0, 8).toUpperCase()}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <Package className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[10px] uppercase text-muted-foreground font-bold">Producto Solicitado</p>
-                      <p className="font-bold text-primary">{products.find(p => p.id === viewingOrder.productId)?.name || 'Desconocido'}</p>
-                      <p className="text-xs font-medium mt-1">
-                        Cantidad: {viewingOrder.quantity} <span className="uppercase text-[10px]">{viewingOrder.unit}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <Separator className="opacity-20" />
-                  <div className="flex items-start gap-3">
-                    <Truck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[10px] uppercase text-muted-foreground font-bold">Proveedor</p>
-                      <p className="font-bold">{suppliers.find(s => s.id === viewingOrder.supplierId)?.name || 'Desconocido'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-accent/5 p-4 rounded-xl border border-accent/10 space-y-3">
-                  <h4 className="text-[10px] uppercase text-accent font-black tracking-widest flex items-center gap-2">
-                    <DollarSign className="w-3 h-3" /> Análisis Financiero
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <span className="text-muted-foreground">Precio Unitario:</span>
-                      <p className="font-bold">${(viewingOrder.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Flete Unitario:</span>
-                      <p className="font-bold">${(viewingOrder.transportPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-accent/10 flex justify-between items-center">
-                    <span className="text-sm font-bold text-accent">COSTO TOTAL ESTIMADO:</span>
-                    <span className="text-lg font-black text-accent">${(viewingOrder.totalCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 bg-muted/30 p-4 rounded-xl border border-border">
-                  <h4 className="text-[10px] uppercase text-muted-foreground font-black tracking-widest flex items-center gap-2">
-                    <CalendarDays className="w-3 h-3" /> Cronograma Logístico
-                  </h4>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Fecha de Solicitud:</span>
-                      <span className="font-medium">{viewingOrder.requestDate ? new Date(viewingOrder.requestDate).toLocaleDateString('es-ES', { dateStyle: 'long', timeZone: 'UTC' }) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Entrega Estimada:</span>
-                      <span className={viewingOrder.deliveryDate ? "text-blue-600 font-bold" : "italic text-muted-foreground"}>
-                        {viewingOrder.deliveryDate ? new Date(viewingOrder.deliveryDate).toLocaleDateString('es-ES', { dateStyle: 'long', timeZone: 'UTC' }) : 'No definida'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-1 border-t border-border/50">
-                      <span className="text-muted-foreground">Recepción Real:</span>
-                      <span className={viewingOrder.receivedDate ? "text-green-600 font-black" : "italic text-muted-foreground"}>
-                        {viewingOrder.receivedDate ? new Date(viewingOrder.receivedDate).toLocaleDateString('es-ES', { dateStyle: 'long', timeZone: 'UTC' }) : 'Pendiente'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {viewingOrder.notes && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1.5">
-                      <FileText className="w-3 h-3" /> Notas Adicionales
-                    </p>
-                    <p className="text-xs text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border italic">
-                      {viewingOrder.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingOrder(null)} className="w-full">Cerrar Vista</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isCreateOpen} onOpenChange={(o) => {
-        setIsCreateOpen(o);
-        if(!o) setEditingOrder(null);
-      }}>
+      <Dialog open={isCreateOpen} onOpenChange={(o) => { setIsCreateOpen(o); if(!o) setEditingOrder(null); }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingOrder ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{editingOrder ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Producto</Label>
-              <Select 
-                value={formData.productId} 
-                onValueChange={(v) => {
-                  const selectedProd = products.find(p => p.id === v);
-                  setFormData(prev => ({
-                    ...prev,
-                    productId: v,
-                    supplierId: selectedProd?.supplierId || prev.supplierId,
-                    unit: (selectedProd?.mainUnit as UnitType) || prev.unit
-                  }));
-                }}
-              >
+              <Select value={formData.productId} onValueChange={(v) => { const selectedProd = products.find(p => p.id === v); setFormData(prev => ({ ...prev, productId: v, supplierId: selectedProd?.supplierId || prev.supplierId, unit: (selectedProd?.mainUnit as UnitType) || prev.unit })); }}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar producto" /></SelectTrigger>
-                <SelectContent>
-                  {sortedProducts.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{sortedProducts.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             
@@ -701,109 +580,38 @@ export default function PurchaseOrdersPage() {
               <Label>Proveedor</Label>
               <Select value={formData.supplierId} onValueChange={(v) => setFormData({...formData, supplierId: v})}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar proveedor" /></SelectTrigger>
-                <SelectContent>
-                  {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <ListTodo className="w-3.5 h-3.5 text-primary" />
-                Estado de la Orden
-              </Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(v) => setFormData({...formData, status: v})}
-                disabled={!isAdmin}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {purchaseOrderStatusDefinitions.map(s => (
-                    <SelectItem key={s.id} value={s.name}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        {s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Label className="flex items-center gap-2"><ListTodo className="w-3.5 h-3.5 text-primary" />Estado de la Orden</Label>
+              <Select value={formData.status} onValueChange={(v) => setFormData({...formData, status: v})} disabled={!isAdmin}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
+                <SelectContent>{purchaseOrderStatusDefinitions.map(s => (<SelectItem key={s.id} value={s.name}><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />{s.name}</div></SelectItem>))}</SelectContent>
               </Select>
-              {!isAdmin && (
-                <p className="text-[10px] text-muted-foreground italic">
-                  * Solo administradores pueden cambiar el estado manualmente.
-                </p>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Cantidad</Label>
-                <Input type="number" step="0.01" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Unidad</Label>
-                <Select value={formData.unit} onValueChange={(v) => setFormData({...formData, unit: v as UnitType})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kilos">Kilos</SelectItem>
-                    <SelectItem value="libras">Libras</SelectItem>
-                    <SelectItem value="bultos">Bultos</SelectItem>
-                    <SelectItem value="unidades">Unidades</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="space-y-2"><Label>Cantidad</Label><Input type="number" step="0.01" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} required /></div>
+              <div className="space-y-2"><Label>Unidad</Label><Select value={formData.unit} onValueChange={(v) => setFormData({...formData, unit: v as UnitType})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="kilos">Kilos</SelectItem><SelectItem value="libras">Libras</SelectItem><SelectItem value="bultos">Bultos</SelectItem><SelectItem value="unidades">Unidades</SelectItem></SelectContent></Select></div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Precio Unitario ($)</Label>
-                <Input value={currentUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-muted" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Costo Flete ($)</Label>
-                <Input value={currentTransportPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-muted" />
-              </div>
+              <div className="space-y-2"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Precio Unitario ($)</Label><Input value={currentUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-muted" /></div>
+              <div className="space-y-2"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Costo Flete ($)</Label><Input value={currentTransportPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-muted" /></div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase text-muted-foreground font-bold">Costo Total Estimado ($)</Label>
-              <Input value={currentTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-primary/10 font-bold" />
-            </div>
+            <div className="space-y-2"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Costo Total Estimado ($)</Label><Input value={currentTotalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })} readOnly className="bg-primary/10 font-bold" /></div>
 
-            <div className="space-y-2 bg-muted/20 p-3 rounded-lg border border-dashed border-border">
-              <Label className="flex items-center gap-2 mb-2">
-                <CalendarDays className="w-4 h-4 text-primary" />
-                Fecha de Solicitud (Request)
-              </Label>
-              <Input 
-                type="date" 
-                value={formData.requestDate} 
-                onChange={e => setFormData({...formData, requestDate: e.target.value})} 
-                required
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                * Determina cuándo se inició oficialmente el proceso de compra.
-              </p>
-            </div>
+            <div className="space-y-2 bg-muted/20 p-3 rounded-lg border border-dashed border-border"><Label className="flex items-center gap-2 mb-2"><CalendarDays className="w-4 h-4 text-primary" />Fecha de Solicitud (Request)</Label><Input type="date" value={formData.requestDate} onChange={e => setFormData({...formData, requestDate: e.target.value})} required /></div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fecha Entrega Est.</Label>
-                <Input type="date" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha Recibido (Real)</Label>
-                <Input type="date" value={formData.receivedDate} onChange={e => setFormData({...formData, receivedDate: e.target.value})} />
-              </div>
+              <div className="space-y-2"><Label>Fecha Entrega Est.</Label><Input type="date" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Fecha Recibido (Real)</Label><Input type="date" value={formData.receivedDate} onChange={e => setFormData({...formData, receivedDate: e.target.value})} /></div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Notas</Label>
-              <Input value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
-            </div>
+            <div className="space-y-2"><Label>Notes</Label><Input value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} /></div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,13 +26,19 @@ import {
   Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { sendContactEmail } from '@/ai/flows/send-contact-email';
+import { sendContactEmail } from '@/server/email/send-contact-email';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 export default function ContactPage() {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -59,6 +65,8 @@ export default function ContactPage() {
       setIsSending(false);
     }
   };
+
+  if (!mounted) return <LoadingScreen />;
 
   if (isSuccess) {
     return (

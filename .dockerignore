@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.DS_Store
+.idx
+firebase-key.json
+firebase-backup*.json
+reporte-*.txt
+reporte-*.csv

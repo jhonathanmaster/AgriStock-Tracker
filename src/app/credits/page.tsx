@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ import {
   AlertTriangle,
   CreditCard,
   Coins,
-  History
+  History as HistoryIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -218,6 +217,16 @@ export default function CreditsPage() {
 
     return list;
   }, [credits, searchTerm, statusFilter, sortConfig]);
+
+  const creditTotalsSummary = useMemo(() => {
+    return filteredCredits.reduce((acc, credit) => {
+      const collected = (creditCollections || []).filter(coll => coll.creditId === credit.id).reduce((s, c) => s + (c.amount || 0), 0);
+      acc.totalAgreed += credit.totalValue;
+      acc.totalCollected += collected;
+      acc.totalPending += (credit.totalValue - collected);
+      return acc;
+    }, { totalAgreed: 0, totalCollected: 0, totalPending: 0 });
+  }, [filteredCredits, creditCollections]);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,6 +530,39 @@ export default function CreditsPage() {
         </div>
       </div>
 
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-primary">Valor Total Acordado (Filtrado)</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-primary">
+              ${creditTotalsSummary.totalAgreed.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-green-600">Total Abonos Recibidos</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-green-700">
+              ${creditTotalsSummary.totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/5 border-destructive/20">
+          <CardHeader className="p-4 pb-2">
+            <CardDescription className="text-[10px] uppercase font-black text-destructive">Saldo Total Pendiente</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-black text-destructive">
+              ${creditTotalsSummary.totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       <Dialog open={isCreateOpen} onOpenChange={(o) => { setIsCreateOpen(o); if(!o) resetForm(); }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -758,7 +800,7 @@ export default function CreditsPage() {
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold flex items-center gap-2">
-                    <History className="w-4 h-4 text-blue-500" /> Historial de Pagos
+                    <HistoryIcon className="w-4 h-4 text-blue-500" /> Historial de Pagos
                   </h4>
                   <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
                     {getCollectionsForCredit(managingCollectionsFor.id).length === 0 ? (

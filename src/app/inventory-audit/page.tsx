@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { 
   ShieldCheck, 
-  History, 
+  History as HistoryIcon, 
   Search, 
   Trash2, 
   Plus, 
@@ -218,7 +217,6 @@ export default function InventoryAuditPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* FORMULARIO DE CONTEO */}
         <Card className="h-fit shadow-md border-primary/10">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -310,13 +308,12 @@ export default function InventoryAuditPage() {
           </CardContent>
         </Card>
 
-        {/* HISTORIAL DE AUDITORÍAS */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
               <div className="space-y-1">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <History className="w-5 h-5 text-primary" />
+                  <HistoryIcon className="w-5 h-5 text-primary" />
                   Historial de Verificaciones
                 </CardTitle>
                 <CardDescription>Registro histórico de conteos físicos.</CardDescription>

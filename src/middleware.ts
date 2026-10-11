@@ -4,37 +4,45 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Middleware de seguridad para GeiaTienda Tracker.
- * Bloquea/Ignora peticiones comunes de bots que buscan vulnerabilidades (WordPress, PHP, etc.)
- * para mantener los logs limpios y ahorrar recursos del servidor.
+ * Bloquea/Ignora peticiones comunes de bots que buscan vulnerabilidades.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Lista extendida de patrones comunes de escaneos de bots y ataques automatizados
+  // Excluir rutas legítimas de Next.js y metadatos
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/robots.txt' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/favicon.ico' ||
+    pathname === '/icon' ||
+    pathname === '/apple-icon'
+  ) {
+    return NextResponse.next();
+  }
+
+  // Lista de patrones de escaneo de bots conocidos
   const suspiciousPatterns = [
-    '/wp-',
-    '/wordpress',
-    '/xmlrpc',
+    '/wp-admin',
+    '/wp-login',
+    '/wp-content',
+    '/xmlrpc.php',
     '/phpmyadmin',
-    '/pma',
     '/.env',
     '/.git',
-    '/sito',
-    '/cms',
-    '/setup-config',
-    '/license.txt',
-    '/readme.html',
-    '/web.config',
     '/config.php',
-    '/login.php'
+    '/login.php',
+    '/setup-config'
   ];
 
   const isSuspicious = suspiciousPatterns.some(pattern => 
-    pathname.toLowerCase().includes(pattern)
-  ) || pathname.endsWith('.php') || pathname.endsWith('.xml');
+    pathname.toLowerCase().startsWith(pattern) || pathname.toLowerCase().includes(pattern)
+  ) || (pathname.endsWith('.php') && !pathname.includes('api'));
 
   if (isSuspicious) {
-    // Retornamos un 404 inmediato y ligero para estas rutas maliciosas/inexistentes
+    // Retornamos un 404 inmediato y ligero para estas rutas maliciosas
     return new NextResponse(null, { status: 404 });
   }
 
@@ -44,12 +52,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Coincidir con todas las rutas excepto:
-     * - api (rutas de API)
-     * - _next/static (archivos estáticos)
-     * - _next/image (optimización de imágenes)
-     * - favicon.ico, icon, apple-icon (iconos)
+     * Coincidir con todas las rutas excepto archivos estáticos explícitos
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon).*)',
   ],
 };

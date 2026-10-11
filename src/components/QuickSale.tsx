@@ -56,7 +56,6 @@ export function QuickSale({
   const [ivaPercentage, setIvaPercentage] = useState<string>('0');
   const [totalPrice, setTotalPrice] = useState<string>('0');
   
-  // Estados para información del cliente
   const [showCustomerInfo, setShowCustomerInfo] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -67,12 +66,11 @@ export function QuickSale({
   const [foundCustomerId, setFoundCustomerId] = useState('');
   const [clientFound, setClientFound] = useState(false);
 
-  // Inicializar fecha después del montaje para evitar errores de hidratación
   useEffect(() => {
+    // Only set on client to avoid hydration mismatch
     setSaleDate(new Date().toISOString().split('T')[0]);
   }, []);
 
-  // Ordenar productos de forma ascendente por nombre
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
   }, [products]);
@@ -85,7 +83,6 @@ export function QuickSale({
     selectedProduct.category === 'Sales Minerales'
   );
 
-  // Cálculos derivados
   const { calculatedSubTotal, calculatedIvaValue, calculatedTotal } = useMemo(() => {
     if (!selectedProduct || !quantity) return { calculatedSubTotal: 0, calculatedIvaValue: 0, calculatedTotal: 0 };
     
@@ -104,12 +101,10 @@ export function QuickSale({
     };
   }, [selectedProduct, quantity, unit, ivaPercentage, convertQuantity]);
 
-  // Actualizar el input de precio total cuando cambian los factores, pero permitir edición manual
   useEffect(() => {
     setTotalPrice(calculatedTotal.toFixed(2));
   }, [calculatedTotal]);
 
-  // Resultados de búsqueda filtrados para clientes
   const searchResults = useMemo(() => {
     if (!customerSearchQuery || customerSearchQuery.length < 2) return [];
     const query = customerSearchQuery.toLowerCase();
@@ -148,8 +143,6 @@ export function QuickSale({
 
     const finalTotal = parseFloat(totalPrice) || 0;
     const finalIvaPerc = parseFloat(ivaPercentage) || 0;
-    
-    // Si el usuario editó el total manualmente, recalculamos el subtotal basado en el IVA indicado
     const finalSubTotal = finalTotal / (1 + finalIvaPerc / 100);
     const finalIvaValue = finalTotal - finalSubTotal;
 
@@ -162,7 +155,6 @@ export function QuickSale({
       identificationNumber: customerIdentification || ''
     } : undefined;
 
-    // Intentar preservar la hora actual al asignar la fecha de venta
     const now = new Date();
     const timeStr = now.toISOString().split('T')[1];
     const finalSaleDateTime = `${saleDate || new Date().toISOString().split('T')[0]}T${timeStr}`;
@@ -179,7 +171,6 @@ export function QuickSale({
       customerData
     );
     
-    // Reset form
     setQuantity('');
     setSelectedId('');
     setTotalPrice('0');

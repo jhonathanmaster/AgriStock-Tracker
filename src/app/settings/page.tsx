@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,12 @@ import {
   User, 
   Image as ImageIcon, 
   Upload, 
-  Signature 
+  Signature,
+  FileText,
+  FileDown,
+  Eye,
+  Send,
+  Loader2
 } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -37,6 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UnitConversion } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { sendContractTemplateEmail } from '@/server/email/send-contract-template-email';
 
 export default function SettingsPage() {
   const { 
@@ -72,14 +78,20 @@ export default function SettingsPage() {
   const [repName, setRepName] = useState('');
   const [repPos, setRepPos] = useState('');
   
-  // URLs de imágenes
+  // URLs de imágenes y PDF
   const [logoUrl, setLogoUrl] = useState('');
   const [iconUrl, setIconUrl] = useState('');
   const [signatureUrl, setSignatureUrl] = useState('');
+  const [contractTemplateUrl, setContractTemplateUrl] = useState('');
+
+  // State para envío de contrato
+  const [contractRecipientEmail, setContractRecipientEmail] = useState('');
+  const [isSendingContract, setIsSendingContract] = useState(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+  const contractInputRef = useRef<HTMLInputElement>(null);
 
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
@@ -93,7 +105,8 @@ export default function SettingsPage() {
   }, [user, isUserLoading, isLoading, router, isAdmin]);
 
   useEffect(() => {
-    if (!isLoading && !initialDataLoaded && companyInfo) {
+    // Sincronizar estados locales cuando los datos del store estén listos
+    if (!isLoading && companyInfo && !initialDataLoaded) {
       setCompName(companyInfo.name || '');
       setCompNit(companyInfo.nit || '');
       setCompAddress(companyInfo.address || '');
@@ -104,27 +117,41 @@ export default function SettingsPage() {
       setLogoUrl(companyInfo.logoUrl || '');
       setIconUrl(companyInfo.iconUrl || '');
       setSignatureUrl(companyInfo.signatureUrl || '');
+      setContractTemplateUrl(companyInfo.contractTemplateUrl || '');
       
       if (criticalThreshold !== undefined) setNewThreshold(criticalThreshold.toString());
       if (initialCapital !== undefined) setNewInitialCapital(initialCapital.toString());
       
       setInitialDataLoaded(true);
     }
-  }, [isLoading, initialDataLoaded, companyInfo, criticalThreshold, initialCapital]);
+  }, [isLoading, companyInfo, criticalThreshold, initialCapital, initialDataLoaded]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'icon' | 'signature') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'icon' | 'signature' | 'pdf') => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { 
-        toast({ variant: "destructive", title: "Archivo muy grande", description: "Selecciona una imagen menor a 1MB." });
+      const maxSize = type === 'pdf' ? 2 * 1024 * 1024 : 1024 * 1024;
+      
+      if (file.size > maxSize) { 
+        toast({ 
+          variant: "destructive", 
+          title: "Archivo muy grande", 
+          description: `Selecciona un archivo menor a ${type === 'pdf' ? '2MB' : '1MB'}.` 
+        });
         return;
       }
+
+      if (type === 'pdf' && file.type !== 'application/pdf') {
+        toast({ variant: "destructive", title: "Formato inválido", description: "Por favor carga únicamente archivos PDF." });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         if (type === 'logo') setLogoUrl(result);
         else if (type === 'icon') setIconUrl(result);
         else if (type === 'signature') setSignatureUrl(result);
+        else if (type === 'pdf') setContractTemplateUrl(result);
       };
       reader.readAsDataURL(file);
     }
@@ -174,14 +201,51 @@ export default function SettingsPage() {
       representativePosition: repPos,
       logoUrl: logoUrl,
       iconUrl: iconUrl,
-      signatureUrl: signatureUrl
+      signatureUrl: signatureUrl,
+      contractTemplateUrl: contractTemplateUrl
     });
-    toast({ title: "Información Actualizada", description: "Los datos de la empresa han sido guardados correctamente." });
+    toast({ title: "Información Actualizada", description: "Los datos de la empresa han sido guardados correctamente en la base de datos." });
+  };
+
+  const handleSendContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractRecipientEmail || !contractTemplateUrl) return;
+
+    setIsSendingContract(true);
+    try {
+      // The server attaches the saved template: save it first if it was just uploaded.
+      if (contractTemplateUrl !== (companyInfo.contractTemplateUrl || '')) {
+        await updateCompanyInfo({ contractTemplateUrl });
+      }
+      const result = await sendContractTemplateEmail({ recipientEmail: contractRecipientEmail });
+
+      if (result.success) {
+        toast({ title: "Contrato Enviado", description: `La preforma ha sido enviada con éxito a ${contractRecipientEmail}.` });
+        setContractRecipientEmail('');
+      } else {
+        toast({ variant: "destructive", title: "Error de envío", description: result.error });
+      }
+    } catch (error) {
+      console.error("Error al enviar contrato:", error);
+      toast({ variant: "destructive", title: "Fallo crítico", description: "Ocurrió un error inesperado al intentar enviar el correo." });
+    } finally {
+      setIsSendingContract(false);
+    }
   };
 
   const handleReset = () => {
     seedDefaultConversions();
     toast({ title: "Valores Restaurados", description: "Se han cargado los factores estándar." });
+  };
+
+  const downloadPDF = () => {
+    if (!contractTemplateUrl) return;
+    const link = document.createElement('a');
+    link.href = contractTemplateUrl;
+    link.download = `Preforma_Contrato_GeiaTienda.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -361,6 +425,122 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-8">
+          {/* PLANTILLAS DE DOCUMENTOS */}
+          <Card className="shadow-sm border-blue-200 overflow-hidden">
+            <CardHeader className="flex flex-row items-center gap-2 border-b">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <div>
+                <CardTitle className="text-lg">Documentos y Plantillas</CardTitle>
+                <CardDescription>Carga de preformas y modelos legales</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preforma de Contrato (PDF)</Label>
+                <div className="bg-muted/30 rounded-xl border-2 border-dashed border-border p-6 flex flex-col items-center justify-center gap-4 text-center">
+                  {contractTemplateUrl ? (
+                    <div className="space-y-4 w-full">
+                      <div className="flex items-center justify-center gap-3 text-blue-600">
+                        <FileText className="w-10 h-10" />
+                        <div className="text-left">
+                          <p className="text-sm font-bold">Contrato Base Cargado</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Formato: PDF</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={downloadPDF}>
+                          <FileDown className="w-4 h-4" /> Descargar
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" className="gap-2" onClick={() => contractInputRef.current?.click()}>
+                          <Upload className="w-4 h-4" /> Reemplazar
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setContractTemplateUrl('')}>
+                          <X className="w-4 h-4" /> Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">No hay contrato cargado</p>
+                        <p className="text-xs text-muted-foreground">Sube el modelo legal de GeiaTienda en PDF</p>
+                      </div>
+                      <Button type="button" size="sm" onClick={() => contractInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700">
+                        Seleccionar Archivo PDF
+                      </Button>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="application/pdf" 
+                    className="hidden" 
+                    ref={contractInputRef} 
+                    onChange={(e) => handleFileChange(e, 'pdf')} 
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground italic text-center">
+                  * Este archivo se utilizará como base para la generación de contratos automáticos. Máx 2MB.
+                </p>
+              </div>
+              <Button onClick={handleSaveCompanyInfo} className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                <Save className="w-4 h-4" />
+                Guardar Plantilla de Contrato
+              </Button>
+
+              <Separator className="my-6" />
+
+              {/* ENVÍO DE CONTRATO POR CORREO */}
+              <div className="space-y-4 bg-primary/5 p-6 rounded-2xl border border-primary/10">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-primary flex items-center gap-2 uppercase tracking-tight">
+                    <Send className="w-4 h-4" />
+                    Enviar Preforma a un Cliente
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">Envía rápidamente el archivo PDF cargado anteriormente a cualquier dirección de correo.</p>
+                </div>
+                
+                <form onSubmit={handleSendContract} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="sendEmail" className="text-xs">Correo Electrónico del Destinatario</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="sendEmail"
+                        type="email"
+                        placeholder="ejemplo@correo.com"
+                        value={contractRecipientEmail}
+                        onChange={e => setContractRecipientEmail(e.target.value)}
+                        className="bg-white h-11"
+                        required
+                        disabled={!contractTemplateUrl || isSendingContract}
+                      />
+                      <Button 
+                        type="submit" 
+                        className="h-11 px-6 shadow-md gap-2" 
+                        disabled={!contractTemplateUrl || !contractRecipientEmail || isSendingContract}
+                      >
+                        {isSendingContract ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                        {isSendingContract ? 'Enviando...' : 'Enviar'}
+                      </Button>
+                    </div>
+                  </div>
+                  {!contractTemplateUrl && (
+                    <div className="flex items-center gap-2 p-2 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 animate-in fade-in slide-in-from-top-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span className="text-[9px] font-bold uppercase">Primero debe cargar y guardar una plantilla de contrato.</span>
+                    </div>
+                  )}
+                </form>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="shadow-sm border-accent/20">
             <CardHeader className="flex flex-row items-center gap-2 border-b">
               <AlertTriangle className="w-5 h-5 text-accent" />

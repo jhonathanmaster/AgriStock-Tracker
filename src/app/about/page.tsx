@@ -1,11 +1,13 @@
 
 "use client";
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { 
   Sprout, 
   ArrowLeft, 
@@ -23,6 +25,14 @@ import {
 } from 'lucide-react';
 
 export default function AboutPage() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return <LoadingScreen />;
+
   return (
     <div className="min-h-screen bg-[#F6F8ED] flex flex-col">
       {/* HEADER */}

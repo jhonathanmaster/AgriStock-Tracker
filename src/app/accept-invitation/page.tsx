@@ -1,139 +1,71 @@
-
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { useFirestore, useUser, useAuth } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useUser, signOut, refreshSession } from '@/lib/session';
+import { api } from '@/lib/data-store';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Sprout, LogIn, Loader2, ShieldCheck } from 'lucide-react';
-import { Invitation } from '@/lib/types';
+import { CheckCircle2, XCircle, Sprout, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
+import { SignInOptions } from '@/components/SignInOptions';
+
+type Status = 'idle' | 'loading' | 'success' | 'expired' | 'invalid' | 'need-login' | 'wrong-account';
 
 function AcceptInvitationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const db = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'expired' | 'invalid' | 'need-login' | 'wrong-account'>('idle');
-  const [invitationData, setInvData] = useState<Invitation | null>(null);
-  const [emailParam, setEmailParam] = useState<string | null>(null);
-  const [tokenParam, setTokenParam] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
+  const emailParam = searchParams.get('email')?.toLowerCase() || null;
+  const tokenParam = searchParams.get('token') || null;
+  const returnTo = `/accept-invitation?${searchParams.toString()}`;
 
-  useEffect(() => {
-    const email = searchParams.get('email')?.toLowerCase();
-    const token = searchParams.get('token');
-    
-    setEmailParam(email || null);
-    setTokenParam(token || null);
-
-    if (!email || !token) {
-      setStatus('invalid');
-    } else {
-      setStatus('idle');
-    }
-  }, [searchParams]);
-
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error de autenticación", description: error.message });
-    }
-  };
-
-  const processActivation = async () => {
-    if (!db || !user || !emailParam || !tokenParam) return;
-
+  const processActivation = useCallback(async () => {
+    if (!emailParam || !tokenParam) return;
     setStatus('loading');
     try {
-      const invRef = doc(db, 'invitations', emailParam);
-      const invDoc = await getDoc(invRef);
-
-      if (!invDoc.exists()) {
-        setStatus('invalid');
-        return;
+      const r = await api<{ status: Status | 'success' }>('POST', '/api/auth/invitation', { email: emailParam, token: tokenParam });
+      if (r.status === 'success') {
+        await refreshSession();
+        setStatus('success');
+        toast({ title: "Cuenta Activada", description: "Ya puedes acceder al sistema." });
+        setTimeout(() => router.push('/'), 2000);
+      } else {
+        setStatus(r.status as Status);
       }
-
-      const data = invDoc.data() as Invitation;
-      setInvData(data);
-
-      // Validar token
-      if (data.token !== tokenParam) {
-        setStatus('invalid');
-        return;
-      }
-
-      // Validar expiración
-      const expiresAt = new Date(data.expiresAt).getTime();
-      if (Date.now() > expiresAt && data.status !== 'accepted') {
-        setStatus('expired');
-        return;
-      }
-
-      // Validar cuenta de correo
-      if (user.email?.toLowerCase() !== emailParam) {
-        setStatus('wrong-account');
-        return;
-      }
-
-      // Proceder con la activación
-      const now = new Date().toISOString();
-      
-      // 1. Actualizar invitación
-      await updateDoc(invRef, {
-        status: 'accepted',
-        acceptedAt: now,
-        enabled: true
-      });
-
-      // 2. Crear/Actualizar Perfil de Usuario
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || emailParam.split('@')[0],
-        photoURL: user.photoURL,
-        enabled: true,
-        lastLogin: now,
-        accessHistory: [now],
-        role: 'operario'
-      }, { merge: true });
-
-      setStatus('success');
-      toast({ title: "Cuenta Activada", description: "Ya puedes acceder al sistema." });
-      
-      // Redirigir después de un momento
-      setTimeout(() => router.push('/'), 2000);
-
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error al activar invitación:", error);
       setStatus('invalid');
     }
-  };
+  }, [emailParam, tokenParam, router, toast]);
 
   useEffect(() => {
-    if (status === 'idle' && emailParam && tokenParam) {
-      if (!isUserLoading) {
-        if (!user) {
-          setStatus('need-login');
-        } else {
-          processActivation();
-        }
-      }
+    if (!emailParam || !tokenParam) {
+      setStatus('invalid');
+      return;
     }
-  }, [user, isUserLoading, status, emailParam, tokenParam]);
+    if (status !== 'idle' || isUserLoading) return;
+    if (user) {
+      void processActivation();
+      return;
+    }
+    // Not signed in yet: check the link first so we can tell the visitor what to do.
+    api<{ status: string }>('GET', `/api/auth/invitation?email=${encodeURIComponent(emailParam)}&token=${encodeURIComponent(tokenParam)}`)
+      .then((r) => setStatus(r.status === 'valid' || r.status === 'accepted' ? 'need-login' : (r.status as Status)))
+      .catch(() => setStatus('invalid'));
+  }, [user, isUserLoading, status, emailParam, tokenParam, processActivation]);
 
-  if (status === 'loading' || isUserLoading) {
+  const useAnotherAccount = async () => {
+    await signOut();
+    setStatus('need-login');
+  };
+
+  if (status === 'loading' || status === 'idle' || isUserLoading) {
     return <LoadingScreen />;
   }
 
@@ -176,12 +108,15 @@ function AcceptInvitationContent() {
               </div>
               <p className="text-sm text-muted-foreground">
                 Has sido invitado con el correo <br/><b className="text-foreground">{emailParam}</b>.<br/>
-                Inicia sesión para completar la activación.
+                Entra con Google o crea una contraseña para completar la activación.
               </p>
-              <Button onClick={handleLogin} className="w-full gap-2 h-12" size="lg">
-                <LogIn className="w-5 h-5" />
-                Entrar con Google
-              </Button>
+              <SignInOptions
+                returnTo={returnTo}
+                email={emailParam || undefined}
+                preferRegister
+                onSignedIn={() => setStatus('idle')}
+                onError={(message) => toast({ variant: "destructive", title: "Error de autenticación", description: message })}
+              />
             </div>
           )}
 
@@ -194,8 +129,8 @@ function AcceptInvitationContent() {
               <p className="text-sm text-muted-foreground">
                 Estás autenticado como <b>{user?.email}</b>, pero la invitación es para <b>{emailParam}</b>.
               </p>
-              <Button onClick={handleLogin} variant="outline" className="w-full">
-                Usar otra cuenta de Google
+              <Button onClick={useAnotherAccount} variant="outline" className="w-full">
+                Usar otra cuenta
               </Button>
             </div>
           )}

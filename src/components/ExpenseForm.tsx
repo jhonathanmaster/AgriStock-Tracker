@@ -38,7 +38,6 @@ export function ExpenseForm({ onSave, initialData }: ExpenseFormProps) {
     total: 0
   });
 
-  // Initialize date on mount to avoid hydration mismatch
   useEffect(() => {
     if (!initialData?.date && !formData.date) {
       setFormData(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
@@ -60,7 +59,6 @@ export function ExpenseForm({ onSave, initialData }: ExpenseFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validaciones de campos obligatorios
     if (!formData.description.trim()) {
       toast({ variant: "destructive", title: "Campo requerido", description: "Debes ingresar una descripción." });
       return;
@@ -132,11 +130,6 @@ export function ExpenseForm({ onSave, initialData }: ExpenseFormProps) {
               {expenseCategories.map(cat => (
                 <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
               ))}
-              {expenseCategories.length === 0 && (
-                <div className="p-2 text-xs text-muted-foreground text-center">
-                  Sin categorías. Definir en Administración.
-                </div>
-              )}
             </SelectContent>
           </Select>
         </div>
@@ -219,11 +212,6 @@ export function ExpenseForm({ onSave, initialData }: ExpenseFormProps) {
             {suppliers.map(sup => (
               <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
             ))}
-            {suppliers.length === 0 && (
-              <div className="p-2 text-xs text-muted-foreground text-center">
-                No hay proveedores registrados.
-              </div>
-            )}
           </SelectContent>
         </Select>
       </div>

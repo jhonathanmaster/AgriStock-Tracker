@@ -78,6 +78,18 @@
       "description": "Sistemas de riego e insumos hídricos",
       "imageUrl": "https://picsum.photos/seed/water98/600/400",
       "imageHint": "irrigation pipe"
+    },
+    {
+      "id": "transport-hero-truck",
+      "description": "Camión de carga pesada en carretera para el servicio de logística.",
+      "imageUrl": "https://picsum.photos/seed/trans-log-hero/1920/1080",
+      "imageHint": "logistics truck"
+    },
+    {
+      "id": "transport-service-truck",
+      "description": "Vehículo de transporte de mercancía agrícola.",
+      "imageUrl": "https://picsum.photos/seed/truck-delivery/800/600",
+      "imageHint": "delivery truck"
     }
   ]
 }

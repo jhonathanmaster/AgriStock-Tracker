@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAgriStock } from '@/lib/store';
-import { useUser } from '@/firebase';
+import { useUser } from '@/lib/session';
 import { ProductForm } from '@/components/ProductForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,7 @@ import {
   Eye, 
   Pencil, 
   Trash2, 
-  ImageIcon, 
+  Image as ImageIcon, 
   TrendingUp, 
   Wallet, 
   Coins, 
@@ -151,7 +150,8 @@ export default function InventoryPage() {
   };
 
   const handleUpdate = (updatedProduct: Product) => {
-    updateProduct(updatedProduct.id, updatedProduct);
+    // Pass the stock shown when the form opened: only the difference is applied.
+    updateProduct(updatedProduct.id, updatedProduct, editingProduct?.stock);
     setEditingProduct(null);
     toast({
       title: "Producto Actualizado",
@@ -356,7 +356,7 @@ export default function InventoryPage() {
           <div className="bg-white p-4 rounded-xl border border-accent/20 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="w-3 h-3 text-accent" />
-              <span className="text-[10px] uppercase font-black text-muted-foreground tracking-wider leading-none">Venta Proyectada</span>
+              <span className="text-[10px] uppercase font-black text-muted-foreground tracking-wider font-black">Venta Proyectada</span>
             </div>
             <span className="text-lg font-black text-accent leading-none">
               ${globalFinancials.totalProjected.toLocaleString('en-US', { minimumFractionDigits: 2 })}
