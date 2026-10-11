@@ -1,7 +1,8 @@
 # CLAUDE.md — AgriStock Tracker (GeiaTienda Tracker)
 
 Sistema de inventario y ventas para tiendas agrícolas: productos, insumos y animales,
-ventas rápidas, órdenes de compra, cotizaciones, gastos, créditos y auditorías de inventario.
+ventas rápidas, órdenes de compra, cotizaciones, gastos, créditos, auditorías de inventario
+y logística (camiones, servicios de transporte y sus abonos).
 La interfaz y los textos están en **español**; mantén ese idioma en UI, mensajes y comentarios.
 
 > Nota: el `package.json` se llama `geiatienda-tracker`. El repo `studio` es una versión
