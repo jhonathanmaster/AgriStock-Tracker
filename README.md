@@ -2,6 +2,8 @@
 
 Inventario agrícola de GEIA: productos e insumos por kilos, bultos y unidades, ventas rápidas, encargos, cotizaciones, créditos, gastos, órdenes de compra con seguimiento, auditoría física de inventario, reportes y el portal web público con catálogo y pedidos.
 
+📚 **Documentación técnica y manuales de usuario:** [`docs/`](docs/README.md)
+
 **Stack:** Next.js 15 (React 19, Tailwind, shadcn/ui) con su propia API, PostgreSQL con Drizzle ORM y Docker. Sin Firebase.
 
 ---

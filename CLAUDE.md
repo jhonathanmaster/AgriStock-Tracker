@@ -38,6 +38,7 @@ Antes de dar un cambio por terminado, ejecuta `npm run typecheck`, `npm run buil
 - `src/lib/types.ts` — tipos del dominio. `src/server/db/schema.ts` es la fuente de verdad del modelo.
 - `scripts/` — exportar/importar Firestore, asignar contraseña, prueba de punta a punta.
 - `src/middleware.ts` — devuelve 404 a rutas típicas de escaneo de bots (wp-, .php, .env…).
+- `docs/` — documentación técnica (`docs/tecnica/`) y manuales (`docs/manuales/`); actualízalos si cambias comportamiento visible.
 - `docs/blueprint.md` — visión original y guía de estilo (verde #8BA34C, fondo #F6F8ED, acento #D0AC55, fuente PT Sans).
 
 ## Roles y seguridad
