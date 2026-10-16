@@ -155,6 +155,31 @@ check('stock = 80 + 10 (una sola vez)', near(p.stock, 90), `stock=${p.stock}`);
 const po = (await data(op, 'purchaseOrders')).purchaseOrders.find((o) => o.id === poId);
 check('O.C. conserva deliveryDate tal cual', po?.deliveryDate === '2026-12-01');
 
+console.log('orden de compra creada o editada desde el formulario');
+r = await admin('POST', '/api/products', { referenceCode: `SMK2-${stamp}`, name: `SMOKE Sal ${stamp}`, category: `Concentrados ${stamp}`, mainUnit: 'kilos', costPrice: 1, profitPercentage: 0, salePrice: 1, stock: 0 });
+const p2 = r.json?.id;
+r = await op('POST', '/api/data/purchaseOrders', { productId: p2, supplierId, quantity: 10, unit: 'kilos', status: 'Recibida' });
+const po2 = r.json?.id;
+p = await product(admin, p2);
+check('O.C. creada ya "Recibida" suma al stock', r.status === 201 && near(p.stock, 10), `stock=${p.stock}`);
+await op('PATCH', `/api/data/purchaseOrders/${po2}`, { notes: 'solo una nota', status: 'Recibida' });
+p = await product(admin, p2);
+check('editar otra cosa de la O.C. no vuelve a sumar', near(p.stock, 10), `stock=${p.stock}`);
+await op('PATCH', `/api/data/purchaseOrders/${po2}`, { quantity: 1, unit: 'bultos' });
+p = await product(admin, p2);
+check('corregir la cantidad recibida (10 kg → 1 bulto) ajusta el stock a 40', near(p.stock, 40), `stock=${p.stock}`);
+movs = (await data(admin, 'movements')).movements.filter((m) => m.productId === p2);
+check('sigue habiendo una sola entrada por la O.C.', movs.filter((m) => m.notes === `Recepción O.C. #${po2}`).length === 1);
+r = await op('POST', '/api/data/purchaseOrders', { productId: p2, supplierId, quantity: 5, unit: 'kilos', status: 'Solicitado' });
+const po3 = r.json?.id;
+await op('PATCH', `/api/data/purchaseOrders/${po3}`, { status: 'Recibido' });
+p = await product(admin, p2);
+check('pasar a "Recibido" editando la O.C. suma al stock', near(p.stock, 45), `stock=${p.stock}`);
+r = await op('POST', '/api/data/purchaseOrders', { productId: p2, supplierId, quantity: 5, unit: 'kilos', status: 'Solicitado' });
+await op('POST', `/api/purchase-orders/${r.json?.id}/status`, { status: 'Recibida' });
+p = await product(admin, p2);
+check('el estado "Recibida" también suma desde seguimiento', near(p.stock, 50), `stock=${p.stock}`);
+
 console.log('edición de producto sin pisar ventas');
 // The form was opened when stock was 90; meanwhile someone sells 5.
 await op('POST', '/api/movements', { productId, type: 'venta', quantity: 5, unit: 'kilos', totalValue: 6000 });
