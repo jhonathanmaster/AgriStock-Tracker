@@ -136,7 +136,7 @@ El *Seguimiento O.C.* reconoce estos nombres para mostrar sus botones de acción
 | 5 | Finalizado | Cerrada |
 | 6 | Cancelado | Anulada |
 
-El primer estado de la lista es el que reciben las órdenes nuevas. "Aprobar Seleccionadas" mueve las órdenes al estado siguiente en el orden configurado.
+El primer estado de la lista es el que reciben las órdenes nuevas. Para que la mercancía entre al inventario, recíbela desde *Seguimiento O.C.* (**Recibir Seleccionadas**); no crees ni edites una orden poniéndola directamente en "Recibido" desde el formulario. "Aprobar Seleccionadas" mueve las órdenes al estado siguiente en el orden configurado.
 
 ---
 

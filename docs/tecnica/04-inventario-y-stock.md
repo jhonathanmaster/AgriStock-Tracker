@@ -31,6 +31,12 @@ El código está en `src/server/inventory.ts` (`recordMovement`, `lockProduct`, 
 - **Crear o editar una orden de compra**: solo al recibirla.
 - **Gastos**: no tocan inventario.
 
+## Límites conocidos
+
+- **Se permite vender más de lo que hay.** El servidor no rechaza una venta por falta de stock; el stock puede quedar negativo. Un stock negativo indica que falta registrar una entrada (por ejemplo, una orden de compra no recibida) o que hay que hacer un conteo.
+- **Órdenes de compra creadas o editadas directamente como "Recibido"** desde el formulario no suman stock en esta versión; solo lo hace el cambio de estado (`POST /api/purchase-orders/:id/status`). El PR #3 corrige esto y además ajusta el stock si se edita la cantidad de una orden ya recibida. Mientras no se fusione, recibe la mercancía desde *Seguimiento O.C.*
+- **Encargos entregados** (incluidos los pedidos web) no descuentan stock; hay que registrar la venta en *Ventas Rápidas*.
+
 ## Unidades y conversiones
 
 Cada producto tiene una **unidad principal** (`kilos`, `libras`, `bultos` o `unidades`) y su stock se guarda en esa unidad. Un movimiento puede venir en otra unidad; el servidor lo convierte:
