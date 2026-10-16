@@ -48,6 +48,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { cn } from '@/lib/utils';
 import placeholderData from '@/app/lib/placeholder-images.json';
 import { useToast } from '@/hooks/use-toast';
+import { ColdesoftCredit } from '@/components/ColdesoftCredit';
 
 /**
  * Utilidad para generar un slug amigable a partir del nombre del producto.
@@ -393,6 +394,7 @@ function PublicLanding() {
         </div>
         <div className="container mx-auto px-4 mt-12 pt-8 border-t border-border text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
           © {new Date().getFullYear()} GeiaTienda Tracker - Gestión Profesional de Inventario
+          <ColdesoftCredit className="mt-4 flex" />
         </div>
       </footer>
     </div>

@@ -21,6 +21,7 @@ import {
   Facebook,
   Clock
 } from 'lucide-react';
+import { ColdesoftCredit } from '@/components/ColdesoftCredit';
 
 export default function AboutPage() {
   return (
@@ -196,6 +197,7 @@ export default function AboutPage() {
         </div>
         <div className="container mx-auto px-4 mt-12 pt-8 border-t border-border text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
           © {new Date().getFullYear()} GeiaTienda Tracker - Gestión Profesional de Inventario
+          <ColdesoftCredit className="mt-4 flex" />
         </div>
       </footer>
     </div>

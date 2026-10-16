@@ -34,6 +34,7 @@ import { useUser, useAuth } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { signOut } from 'firebase/auth';
 import { useAgriStock } from '@/lib/store';
+import { ColdesoftCredit } from '@/components/ColdesoftCredit';
 import {
   Sidebar,
   SidebarContent,
@@ -203,6 +204,7 @@ export function Navigation() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <ColdesoftCredit variant="sidebar" />
       </SidebarFooter>
     </Sidebar>
   );
