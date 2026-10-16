@@ -38,6 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { UnitType } from '@/lib/types';
+import { ColdesoftCredit } from '@/components/ColdesoftCredit';
 
 /**
  * Utilidad para generar un slug amigable a partir del nombre del producto.
@@ -580,6 +581,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="container mx-auto px-4 mt-12 pt-8 border-t border-border text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
           © {new Date().getFullYear()} GeiaTienda Tracker - Gestión Profesional de Inventario
+          <ColdesoftCredit className="mt-4 flex" />
         </div>
       </footer>
     </div>
